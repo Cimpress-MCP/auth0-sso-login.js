@@ -1,0 +1,20 @@
+language: node_js
+node_js:
+- lts/*
+before_script:
+- node make.js build
+before_deploy:
+- node make.js after_build
+deploy:
+  provider: npm
+  email: at@cimpress.com
+  api_key:
+    secure: HwpZwJ5z83+/zfSnOUyyXkLDI7805+ZhIuFOIFJNTOrpiuaIGU4bP2wno6M9R/r9ODvAEFFwEQlO6ya4R2rfVimgVKxyGyIUChNoKi9I3/y6h0bMBX6rWPGHvfBOvvlqysWHxPvT0G78TAb0u/HVSXIjY0yGLWxZ+W+SkfnlGtaAyUkEyqMOvYHhEPPYVA3LBQjdEImcaWnhoBhEFxmSlRNryrbSF56xl+/cF9PPuLfVnjGhtsvRmu5ll1lr9H4/sm+5O9zS8MhCebHcGkUEFwmxfq+DIt+djP85JZMu4AqIxwB/D2bcXL6MWa9B08tf6nLTWeC94P3qEbSi7S4n8oYcv+svoYB7xdpGtGpfk1M/LMGU48kVjQTaEYAK6tUcx4daGh4khDKjMXDpNToeVM9oWnGp/5enFEa2EZ87Td2+irj39vOXii3/EiF7RnauUzYujJr5sESi2kIG9ImMa5ZHUQ5wzA09Jp5dFjT8iwt/iM2r1mW0h9XRBFJYuCzsUHX5Da2xP3lMchL+4DX0PsfmPs5PnhUtHMaAoGxSdYDCun2C8ACGo4vgrSKCn7eGR+wM6mIKCIsmcqu2+p8UvMMuQnIyJIO4VP2UMw6s9KWT8IZkBh5PphpNYqF4tfri3oV4i4WmOKNkV6f3TPWKIIy0z02+bfYJzIh+9jFwFcQ=
+  skip_cleanup: true
+  on:
+    all_branches: true
+    condition: "$TRAVIS_BRANCH != master"
+branches:
+  only:
+  - master
+  - "/^release.*/"

@@ -1,0 +1,36 @@
+{
+  "name": "auth0-sso-login.js",
+  "version": "1.0.0",
+  "description": "A Library to simplify the auth0 sso login process",
+  "main": "src/auth0-sso-login.js",
+  "scripts": {
+    "test": "echo testing..."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cimpress-MCP/auth0-sso-login.js.git"
+  },
+  "keywords": [
+    "auth0",
+    "sso",
+    "login",
+    "single-sign-on"
+  ],
+  "author": "Alpha Tango Squad",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Cimpress-MCP/auth0-sso-login.js/issues"
+  },
+  "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
+  "dependencies": {
+    "auth0-js": "8.9.3",
+    "jwt-decode": "2.2.0"
+  },
+  "devDependencies": {
+    "ci-build-tools": "1.0.9",
+    "commander": "2.11.0",
+    "eslint": "4.5.0",
+    "eslint-config-airbnb-base": "11.3.1",
+    "eslint-plugin-import": "2.7.0"
+  }
+}
