@@ -1,23 +1,13 @@
 #!/usr/bin/env node
 
-
-/*
-var fs = require('fs');
-var path = require('path');
-var package_json = path.join(process.cwd(), 'package.json');
-var version = require(package_json).version;
-console.log(version);
-*/
-
 /**
  * Module dependencies
  */
-const commander = require('commander'); // eslint-disable-line import/no-extraneous-dependencies
+const commander = require('commander');
 const fs = require('fs');
 const packageMetadata = require('./package.json');
-const CIBuildTools = (packageMetadata.name === 'ci-build-tools' ? require('./') : require('ci-build-tools')); // eslint-disable-line import/no-extraneous-dependencies
+const ci = require('ci-build-tools')(process.env.GIT_TAG_PUSHER);
 
-const ci = new CIBuildTools(process.env.GIT_TAG_PUSHER);
 const version = ci.GetVersion();
 commander.version(version);
 
@@ -46,8 +36,8 @@ commander
   .action(() => {
     console.log('After build package %s (%s)', packageMetadata.name, version);
     console.log('');
-    // ci.PublishGitTag();
-    // ci.MergeDownstream('release/', 'master');
+    ci.PublishGitTag();
+    ci.MergeDownstream('release/', 'master');
   });
 
 commander.parse(process.argv);
