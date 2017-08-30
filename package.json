@@ -1,5 +1,5 @@
 {
-  "name": "auth0-sso-login.js",
+  "name": "auth0-sso-login",
   "version": "1.0.0",
   "description": "A Library to simplify the auth0 sso login process",
   "main": "src/auth0-sso-login.js",
@@ -23,8 +23,7 @@
   },
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
-    "auth0-js": "8.9.3",
-    "jwt-decode": "2.2.0"
+    "auth0-js": "^8.9.3"
   },
   "devDependencies": {
     "ci-build-tools": "1.0.9",
