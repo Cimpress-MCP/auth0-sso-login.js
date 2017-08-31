@@ -9,7 +9,7 @@ The Auth0 SSO Login provides an easy to use library for single-sign on web pages
 
 ```javascript
 // import library
-import Auth from 'auth0-sso-login.js';
+import Auth from 'auth0-sso-login';
 
 // create an instance of Auth
 let config = { /* ... */ };
@@ -40,6 +40,7 @@ let config = {
   audience: 'specify the auth0 audience, as agreed for the set of applications with the same audience',
 
   // the URL where the auth0 hidden login should redirect. this is preferably a small page that will be loaded as an iframe
+  // see example as part of the package, but also copied below
   loginRedirectUri: `${window.location.origin}/silent-callback.html`,
 
   // the logout URL, which should be accessible by a non-authenticated user
@@ -78,6 +79,37 @@ let config = {
     }
   }
 };
+```
+
+The page where `config.loginRedirectUrl` is customizable by the package's developer. However, since it loads in an invisible iFrame, it's recommended to keep it small without additional dependencies. The page needs to make a callback to its parent. For example, it could look like this:
+
+```html
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://cdn.auth0.com/js/auth0/8.9.3/auth0.min.js"></script>
+  <script type="text/javascript">
+    var webAuth = new auth0.WebAuth({
+      domain: 'my-domain',
+      clientID: 'my-client-id',
+      audience: 'my-audience',
+      leeway: 10
+    });
+    var options = {
+      hash: window.location.hash
+    };
+    var result = webAuth.parseHash(options, function (err, data) {
+      parent.postMessage(err || data, window.location.origin);
+    });
+  </script>
+</head>
+
+<body>
+  <!-- see https://auth0.com/docs/libraries/auth0js#using-renewauth-to-acquire-new-tokens -->
+</body>
+
+</html>
 ```
 
 # Contribution
