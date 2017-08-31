@@ -7,6 +7,14 @@ The Auth0 SSO Login provides an easy to use library for single-sign on web pages
 
 ## Using this library
 
+Install the library.
+
+```bash
+npm install auth0-sso-login
+```
+
+Use the library.
+
 ```javascript
 // import library
 import Auth from 'auth0-sso-login';
@@ -23,7 +31,15 @@ auth.stayLoggedIn();
 // returns a promise, when succeeded, the user is logged in
 // and a valid JWT was provided.
 auth.ensureLoggedIn()
-.then(() => console.log('user is logged in'));
+.then(() => console.log('user is logged in'))
+.catch(error => {
+    console.error('an unexpected error occurred while logging in');
+    // perform application specific steps to handle this situation
+    // this should happen only rarely, since the user will either
+    // be logged in automatically through Auth0's SSO feature, or
+    // the Auth0Lock will handle the login, and only succeed after
+    // the user successfully logged in.
+};
 ```
 
 Several configuration options and hooks are provided to interact with the library.
