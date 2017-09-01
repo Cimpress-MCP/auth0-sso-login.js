@@ -5,7 +5,7 @@
   "main": "lib/auth0-sso-login.js",
   "scripts": {
     "build": "babel src -d lib",
-    "test": "mocha test/**/*.test.js"
+    "test": "mocha --compilers js:babel-core/register test/**/*.test.js"
   },
   "repository": {
     "type": "git",
