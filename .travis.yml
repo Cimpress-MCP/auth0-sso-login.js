@@ -2,6 +2,7 @@ language: node_js
 node_js:
 - lts/*
 before_script:
+- npm run build
 - node make.js build
 before_deploy:
 - node make.js after_build

@@ -2,9 +2,10 @@
   "name": "auth0-sso-login",
   "version": "1.0.0",
   "description": "A Library to simplify the auth0 sso login process",
-  "main": "src/auth0-sso-login.js",
+  "main": "lib/auth0-sso-login.js",
   "scripts": {
-    "test": "mocha test/**/*.test.js"
+    "build": "babel src -d lib",
+    "test": "mocha --compilers js:babel-core/register test/**/*.test.js"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,8 @@
     "auth0-lock": "^10.20.0"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
     "ci-build-tools": "1.0.9",
     "commander": "2.11.0",
     "eslint": "4.5.0",
