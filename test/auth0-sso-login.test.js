@@ -1,12 +1,6 @@
-const mocha = require('mocha');
-
-const describe = mocha.describe;
-const it = mocha.it;
-const beforeEach = mocha.beforeEach;
-const afterEach = mocha.afterEach;
-
-const sinon = require('sinon');
-const Auth = require('../src/auth0-sso-login');
+import { describe, it, beforeEach, afterEach } from 'mocha';
+import sinon from 'sinon';
+import Auth, { windowInteraction } from '../src/auth0-sso-login';
 
 let sandbox;
 beforeEach(() => {
@@ -87,19 +81,20 @@ describe('auth.js', () => {
         const mock = sandbox.mock(hook);
         mock.expects('logout').once().resolves();
         const auth = new Auth({ hooks: { logout: hook.logout } });
-        const authMock = sandbox.mock(auth);
-        authMock.expects('updateWindow').once();
+        const windowInteractionMock = sandbox.mock(windowInteraction);
+        windowInteractionMock.expects('updateWindow').once();
         auth.logout();
         mock.verify();
-        authMock.verify();
+        windowInteractionMock.verify();
       });
 
       it('does not fail when no hook provided', () => {
         const auth = new Auth();
-        const authMock = sandbox.mock(auth);
-        authMock.expects('updateWindow').once();
+        // const authMock = sandbox.mock(auth);
+        const windowInteractionMock = sandbox.mock(windowInteraction);
+        windowInteractionMock.expects('updateWindow').once();
         auth.logout();
-        authMock.verify();
+        windowInteractionMock.verify();
       });
     });
   });
