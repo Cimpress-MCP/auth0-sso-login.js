@@ -126,8 +126,16 @@ export default class auth {
 
   // starts a background process to ensure the user continues to be logged in
   stayLoggedIn() {
-    const hour = 1000 * 60 * 60;
-    setInterval(() => this.ensureLoggedIn(), hour);
+    const minute = 1000 * 60;
+    const hour = minute * 60;
+
+    let lastRefresh = Date.now();
+    setInterval(() => {
+      if (Date.now() - lastRefresh >= hour) {
+        this.ensureLoggedIn();
+        lastRefresh = Date.now();
+      }
+    }, minute);
   }
 
   // renews the authentication
