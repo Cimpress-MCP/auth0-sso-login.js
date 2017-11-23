@@ -154,11 +154,13 @@ export default class auth {
           return;
         }
         if (authResult.accessToken && authResult.idToken) {
-          this.tokenRefreshed(authResult);
-          resolve({
-            idToken: authResult.idToken,
-            sub: authResult.idTokenPayload.sub,
-          });
+          this.tokenRefreshed(authResult)
+            .then(() => {
+              resolve({
+                idToken: authResult.idToken,
+                sub: authResult.idTokenPayload.sub,
+              });
+            });
         } else {
           reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult.error });
         }
