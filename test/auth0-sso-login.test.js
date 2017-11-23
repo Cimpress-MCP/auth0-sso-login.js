@@ -121,7 +121,6 @@ describe('auth.js', () => {
 
   describe('ensureLoggedIn()', () => {
     it('follows correct procedure', () => {
-      const clock = sandbox.useFakeTimers();
       const auth = new Auth();
       const mock = sandbox.mock(auth);
       const loginInfo = { idToken: 'unit-test-id-token', sub: 'unit-test-sub' };
@@ -131,7 +130,6 @@ describe('auth.js', () => {
       mock.expects('profileRefreshed').withExactArgs(profile).once().resolves();
 
       const promise = auth.ensureLoggedIn();
-      clock.tick(1000);
 
       return promise
         .then(() => {

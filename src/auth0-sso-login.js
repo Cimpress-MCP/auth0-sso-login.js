@@ -78,7 +78,6 @@ export default class auth {
     let options = {
       auth: {
         params: {
-          audience: this.config.audience,
           responseType: 'id_token token',
         },
         redirect: false,
@@ -90,26 +89,27 @@ export default class auth {
     }
 
     // The 1000ms here is guarantee that the websocket is finished loading
-    return new Promise(resolve => setTimeout(() => resolve(), 1000))
-      .then(() => this.renewAuth())
+    return this.renewAuth()
       .catch((e) => {
         this.log('Renew authorization did not succeed, falling back to login widget', e);
         return new Promise((resolve, reject) => {
           const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
           lock.on('authenticated', (authResult) => {
-            this.tokenRefreshed(authResult);
-            lock.getUserInfo(authResult.accessToken, (error, profile) => {
-              lock.hide();
-              if (error) {
-                this.log(error);
-                reject(error);
-              } else {
-                resolve({
-                  idToken: authResult.idToken,
-                  sub: profile.sub,
+            this.renewAuth()
+              .then(() => {
+                lock.getUserInfo(authResult.accessToken, (error, profile) => {
+                  lock.hide();
+                  if (error) {
+                    this.log(error);
+                    reject(error);
+                  } else {
+                    resolve({
+                      idToken: authResult.idToken,
+                      sub: profile.sub,
+                    });
+                  }
                 });
-              }
-            });
+              });
           });
 
           lock.on('authorization_error', (error) => {
@@ -162,11 +162,13 @@ export default class auth {
           return;
         }
         if (authResult.accessToken && authResult.idToken) {
-          this.tokenRefreshed(authResult);
-          resolve({
-            idToken: authResult.idToken,
-            sub: authResult.idTokenPayload.sub,
-          });
+          this.tokenRefreshed(authResult)
+            .then(() => {
+              resolve({
+                idToken: authResult.idToken,
+                sub: authResult.idTokenPayload.sub,
+              });
+            });
         } else {
           reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult.error });
         }
