@@ -89,7 +89,7 @@ export default class auth {
     }
 
     // The 1000ms here is guarantee that the websocket is finished loading
-    this.renewAuth()
+    return this.renewAuth()
       .catch((e) => {
         this.log('Renew authorization did not succeed, falling back to login widget', e);
         return new Promise((resolve, reject) => {
