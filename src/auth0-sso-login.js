@@ -78,7 +78,6 @@ export default class auth {
     let options = {
       auth: {
         params: {
-          audience: this.config.audience,
           responseType: 'id_token token',
         },
         redirect: false,
@@ -97,19 +96,21 @@ export default class auth {
         return new Promise((resolve, reject) => {
           const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
           lock.on('authenticated', (authResult) => {
-            this.tokenRefreshed(authResult);
-            lock.getUserInfo(authResult.accessToken, (error, profile) => {
-              lock.hide();
-              if (error) {
-                this.log(error);
-                reject(error);
-              } else {
-                resolve({
-                  idToken: authResult.idToken,
-                  sub: profile.sub,
+            this.renewAuth()
+              .then(() => {
+                lock.getUserInfo(authResult.accessToken, (error, profile) => {
+                  lock.hide();
+                  if (error) {
+                    this.log(error);
+                    reject(error);
+                  } else {
+                    resolve({
+                      idToken: authResult.idToken,
+                      sub: profile.sub,
+                    });
+                  }
                 });
-              }
-            });
+              });
           });
 
           lock.on('authorization_error', (error) => {
