@@ -161,7 +161,7 @@ export default class auth {
           reject(err);
           return;
         }
-        if (authResult.accessToken && authResult.idToken) {
+        if (authResult && authResult.accessToken && authResult.idToken) {
           this.tokenRefreshed(authResult)
             .then(() => {
               resolve({
