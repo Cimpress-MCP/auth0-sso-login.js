@@ -6,13 +6,53 @@ export class windowInteraction {
   static updateWindow(url) {
     window.location = url;
   }
+
+  static setTimeout(func, delay) {
+    return window.setTimeout(func, delay);
+  }
+
+  static clearTimeout(timeoutId) {
+    window.clearTimeout(timeoutId);
+  }
 }
+
+// static localStorage interaction, mostly wrapped for enabling easier mocking through unit tests
+export class localStorageInteraction {
+  static getItem(key) {
+    return localStorage.getItem(key);
+  }
+
+  static setItem(key, value) {
+    return localStorage.setItem(key, value);
+  }
+
+  static removeItem(key) {
+    return localStorage.removeItem(key);
+  }
+}
+
+const scheduleRenewal = (tokenRefreshHandle, renewFunction) => {
+  const tokenExpiresAtJson = localStorageInteraction.getItem('tokenExpiresAt');
+  if (!tokenExpiresAtJson) {
+    return null;
+  }
+  const tokenExpiresAt = JSON.parse(tokenExpiresAtJson);
+
+  if (tokenRefreshHandle) {
+    windowInteraction.clearTimeout(tokenRefreshHandle);
+  }
+
+  // refresh token in the second third of its lifetime
+  const refreshDelay = Math.floor((tokenExpiresAt - Date.now()) / 3) * 2;
+  return windowInteraction.setTimeout(renewFunction, refreshDelay);
+};
 
 // authentication class
 export default class auth {
   // constructs the object with a given configuration
   constructor(config) {
     this.config = config || {};
+    this.tokenRefreshHandle = scheduleRenewal(null, () => this.ensureLoggedIn());
   }
 
   // logs the message to the console, or to a provided hook
@@ -48,6 +88,10 @@ export default class auth {
 
   // calls a hook once the token got refreshed
   tokenRefreshed(authResult) {
+    const tokenExpiresAt = JSON.stringify((authResult.expiresIn * 1000) + Date.now());
+    localStorageInteraction.setItem('tokenExpiresAt', tokenExpiresAt);
+    this.tokenRefreshHandle = scheduleRenewal(this.tokenRefreshHandle, () => this.ensureLoggedIn());
+
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
       return this.config.hooks.tokenRefreshed(authResult);
     }
@@ -56,6 +100,11 @@ export default class auth {
 
   // calls a hook once the login should be removed
   removeLogin() {
+    if (this.tokenRefreshHandle) {
+      windowInteraction.clearTimeout(this.tokenRefreshHandle);
+      localStorageInteraction.removeItem('tokenExpiresAt');
+    }
+
     if (this.config.hooks && this.config.hooks.removeLogin) {
       return this.config.hooks.removeLogin();
     }
@@ -64,6 +113,11 @@ export default class auth {
 
   // calls a hook to log out the user, and then interacts with Auth0 to actually log the user out
   logout() {
+    if (this.tokenRefreshHandle) {
+      windowInteraction.clearTimeout(this.tokenRefreshHandle);
+      localStorageInteraction.removeItem('tokenExpiresAt');
+    }
+
     if (this.config) {
       if (this.config.hooks && this.config.hooks.logout) {
         this.config.hooks.logout();
@@ -92,6 +146,7 @@ export default class auth {
     return this.renewAuth()
       .catch((e) => {
         this.log('Renew authorization did not succeed, falling back to login widget', e);
+        this.removeLogin();
         return new Promise((resolve, reject) => {
           const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
           lock.on('authenticated', (authResult) => {
@@ -124,20 +179,6 @@ export default class auth {
       .then(profile => this.profileRefreshed(profile));
   }
 
-  // starts a background process to ensure the user continues to be logged in
-  stayLoggedIn() {
-    const minute = 1000 * 60;
-    const hour = minute * 60;
-
-    let lastRefresh = Date.now();
-    setInterval(() => {
-      if (Date.now() - lastRefresh >= hour) {
-        this.ensureLoggedIn();
-        lastRefresh = Date.now();
-      }
-    }, minute);
-  }
-
   // renews the authentication
   renewAuth(retries = 0) {
     const webAuth = new auth0.WebAuth({
@@ -155,9 +196,6 @@ export default class auth {
       webAuth.renewAuth(renewOptions, (err, authResult) => {
         if (err) {
           this.log(`Failed to update ID token on retry ${retries}: ${JSON.stringify(err)}`);
-          if (err.error === 'login_required') {
-            this.removeLogin();
-          }
           reject(err);
           return;
         }

@@ -1,6 +1,6 @@
 # Auth0 SSO Login
 
-[![Build Status](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js) 
+[![Build Status](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js)
 [![npm version](https://badge.fury.io/js/auth0-sso-login.svg)](https://www.npmjs.com/package/auth0-sso-login)
 
 The Auth0 SSO Login provides an easy to use library for single-sign on web pages that are leveraging [Auth0](https://auth0.com/) and related [Auth0 Lock](https://auth0.com/lock).
@@ -23,13 +23,11 @@ import Auth from 'auth0-sso-login';
 let config = { /* ... */ };
 let auth = new Auth(config);
 
-// optionally call "stay logged in" which is a background process
-// that ensures hourly that the user stay logged in
-auth.stayLoggedIn();
-
-// verifies that the user is logged in
+// Verifies that the user is logged in
 // returns a promise, when succeeded, the user is logged in
 // and a valid JWT was provided.
+// Schedules automatic background renewal of JWT based on its expiry time.
+// (it will be refresh in the 2/3 of the current token lifetime)
 auth.ensureLoggedIn()
 .then(() => console.log('user is logged in'))
 .catch(error => {
