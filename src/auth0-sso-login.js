@@ -31,8 +31,10 @@ export class localStorageInteraction {
   }
 }
 
+export const tokenExpiresAtKey = 'cimpress.auth0.tokenExpiresAt';
+
 const scheduleRenewal = (tokenRefreshHandle, renewFunction) => {
-  const tokenExpiresAtJson = localStorageInteraction.getItem('tokenExpiresAt');
+  const tokenExpiresAtJson = localStorageInteraction.getItem(tokenExpiresAtKey);
   if (!tokenExpiresAtJson) {
     return null;
   }
@@ -89,7 +91,7 @@ export default class auth {
   // calls a hook once the token got refreshed
   tokenRefreshed(authResult) {
     const tokenExpiresAt = JSON.stringify((authResult.expiresIn * 1000) + Date.now());
-    localStorageInteraction.setItem('tokenExpiresAt', tokenExpiresAt);
+    localStorageInteraction.setItem(tokenExpiresAtKey, tokenExpiresAt);
     this.tokenRefreshHandle = scheduleRenewal(this.tokenRefreshHandle, () => this.ensureLoggedIn());
 
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
@@ -102,7 +104,7 @@ export default class auth {
   removeLogin() {
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      localStorageInteraction.removeItem('tokenExpiresAt');
+      localStorageInteraction.removeItem(tokenExpiresAtKey);
     }
 
     if (this.config.hooks && this.config.hooks.removeLogin) {
@@ -115,7 +117,7 @@ export default class auth {
   logout() {
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      localStorageInteraction.removeItem('tokenExpiresAt');
+      localStorageInteraction.removeItem(tokenExpiresAtKey);
     }
 
     if (this.config) {

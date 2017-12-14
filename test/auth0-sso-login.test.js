@@ -3,7 +3,7 @@ import { describe, it, beforeEach, afterEach } from 'mocha';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import chai from 'chai';
-import Auth, { windowInteraction, localStorageInteraction } from '../src/auth0-sso-login';
+import Auth, { windowInteraction, localStorageInteraction, tokenExpiresAtKey } from '../src/auth0-sso-login';
 
 const expect = chai.expect;
 chai.use(sinonChai);
@@ -34,7 +34,7 @@ describe('auth.js', () => {
       // unwrap the default method stub
       localStorageInteraction.getItem.restore();
       const localStorageInteractionMock = sandbox.mock(localStorageInteraction);
-      localStorageInteractionMock.expects('getItem').withExactArgs('tokenExpiresAt').returns(expectedExpiresAt);
+      localStorageInteractionMock.expects('getItem').withExactArgs(tokenExpiresAtKey).returns(expectedExpiresAt);
 
       const windowInteractionMock = sandbox.mock(windowInteraction);
       windowInteractionMock.expects('setTimeout').withExactArgs(sinon.match.func, expectedRefreshDelay).returns(testHandle);
@@ -128,8 +128,8 @@ describe('auth.js', () => {
         // unwrap the default method stub
         localStorageInteraction.getItem.restore();
         const localStorageInteractionMock = sandbox.mock(localStorageInteraction);
-        localStorageInteractionMock.expects('setItem').withExactArgs('tokenExpiresAt', expectedExpiresAt).once();
-        localStorageInteractionMock.expects('getItem').withExactArgs('tokenExpiresAt').returns(undefined);
+        localStorageInteractionMock.expects('setItem').withExactArgs(tokenExpiresAtKey, expectedExpiresAt).once();
+        localStorageInteractionMock.expects('getItem').withExactArgs(tokenExpiresAtKey).returns(undefined);
 
         auth.tokenRefreshed(authResult);
         expect(auth.tokenRefreshHandle).to.equal(null);
@@ -159,8 +159,8 @@ describe('auth.js', () => {
         // unwrap the default method stub
         localStorageInteraction.getItem.restore();
         const localStorageInteractionMock = sandbox.mock(localStorageInteraction);
-        localStorageInteractionMock.expects('setItem').withExactArgs('tokenExpiresAt', expectedExpiresAt).once();
-        localStorageInteractionMock.expects('getItem').withExactArgs('tokenExpiresAt').returns(expectedExpiresAt);
+        localStorageInteractionMock.expects('setItem').withExactArgs(tokenExpiresAtKey, expectedExpiresAt).once();
+        localStorageInteractionMock.expects('getItem').withExactArgs(tokenExpiresAtKey).returns(expectedExpiresAt);
 
         auth.tokenRefreshHandle = previousHandle;
         auth.tokenRefreshed(authResult);
@@ -200,7 +200,7 @@ describe('auth.js', () => {
         windowInteractionMock.expects('updateWindow').once();
         windowInteractionMock.expects('clearTimeout').withExactArgs('unit-test-handle').once();
         const localStorageInteractionMock = sandbox.mock(localStorageInteraction);
-        localStorageInteractionMock.expects('removeItem').withExactArgs('tokenExpiresAt').once();
+        localStorageInteractionMock.expects('removeItem').withExactArgs(tokenExpiresAtKey).once();
         auth.logout();
         windowInteractionMock.verify();
         localStorageInteractionMock.verify();
@@ -228,7 +228,7 @@ describe('auth.js', () => {
         const windowInteractionMock = sandbox.mock(windowInteraction);
         windowInteractionMock.expects('clearTimeout').withExactArgs('unit-test-handle').once();
         const localStorageInteractionMock = sandbox.mock(localStorageInteraction);
-        localStorageInteractionMock.expects('removeItem').withExactArgs('tokenExpiresAt').once();
+        localStorageInteractionMock.expects('removeItem').withExactArgs(tokenExpiresAtKey).once();
         auth.removeLogin();
         windowInteractionMock.verify();
         localStorageInteractionMock.verify();
