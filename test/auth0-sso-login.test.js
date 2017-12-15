@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(() => sandbox.restore());
 
-describe('auth.js', () => {
+describe('auth0-sso-login.js', () => {
   describe('when notifying hooks', () => {
     describe('for logging', () => {
       it('logs to provided log function', () => {

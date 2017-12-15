@@ -7,23 +7,20 @@ export default class tokenExpiryManager {
   }
 
   getRemainingMillisToTokenExpiry() {
-    if (!this.tokenExpiresAt) {
-      return 0;
-    }
-
-    return Math.floor((this.tokenExpiresAt - Date.now()) / 3) * 2;
+    return this.tokenExpiresAt ? this.tokenExpiresAt - Date.now() : 0;
   }
 
   scheduleTokenRefresh(authResult, refreshFunction) {
-    this.tokenExpiresAt = (authResult.expiresIn * 1000) + Date.now();
+    const expiresInMs = authResult.expiresIn * 1000;
+    const remainingMs = (expiresInMs / 3) * 2;
+
+    this.tokenExpiresAt = remainingMs + Date.now();
 
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
     }
 
-    this.tokenRefreshHandle = windowInteraction.setTimeout(
-      refreshFunction,
-      this.getRemainingMillisToTokenExpiry());
+    this.tokenRefreshHandle = windowInteraction.setTimeout(refreshFunction, remainingMs);
   }
 
   cancelTokenRefresh() {
@@ -31,6 +28,7 @@ export default class tokenExpiryManager {
 
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
+      this.tokenRefreshHandle = null;
     }
   }
 }
