@@ -16,54 +16,40 @@ export class windowInteraction {
   }
 }
 
-// static localStorage interaction, mostly wrapped for enabling easier mocking through unit tests
-export class localStorageInteraction {
-  static getItem(key) {
-    return localStorage.getItem(key);
-  }
-
-  static setItem(key, value) {
-    return localStorage.setItem(key, value);
-  }
-
-  static removeItem(key) {
-    return localStorage.removeItem(key);
-  }
-}
-
-export const tokenExpiresAtKey = 'cimpress.auth0.tokenExpiresAt';
-
-const scheduleRenewal = (tokenRefreshHandle, renewFunction) => {
-  const tokenExpiresAtJson = localStorageInteraction.getItem(tokenExpiresAtKey);
-  if (!tokenExpiresAtJson) {
-    return null;
-  }
-  const tokenExpiresAt = JSON.parse(tokenExpiresAtJson);
-
-  if (tokenRefreshHandle) {
-    windowInteraction.clearTimeout(tokenRefreshHandle);
-  }
-
-  // refresh token in the second third of its lifetime
-  const refreshDelay = Math.floor((tokenExpiresAt - Date.now()) / 3) * 2;
-  return windowInteraction.setTimeout(renewFunction, refreshDelay);
+// consider token expired after second third of its lifetime
+const getRemainingMillisToTokenEpxiry = (authResult) => {
+  const tokenExpiresAt = (authResult.expiresIn * 1000) + Date.now();
+  return Math.floor((tokenExpiresAt - Date.now()) / 3) * 2;
 };
 
 // authentication class
 export default class auth {
-  // constructs the object with a given configuration
+  /**
+   * @constructor constructs the object with a given configuration
+   * @param {Object} config
+   */
   constructor(config) {
     this.config = config || {};
-    this.tokenRefreshHandle = scheduleRenewal(null, () => this.ensureLoggedIn());
+    this.tokenRefreshHandle = null;
+    this.authResult = null;
   }
 
-  // logs the message to the console, or to a provided hook
+  /**
+   * @description logs the message to the console, or to a provided hook
+   * @param message to log
+   * @return {*|void}
+   */
   log(message) {
     const logFunc = (this.config.hooks ? this.config.hooks.log : undefined) || console.log;
     return logFunc(message);
   }
 
-  // gets the detailed profile with a call to the Auth0 Management API
+  /**
+   * @description gets the detailed profile with a call to the Auth0 Management API
+   * @param idToken
+   * @param sub
+   * @return {Promise<any>} resolved promise with user profile; rejected promise with error
+   */
   getDetailedProfile(idToken, sub) {
     return new Promise((resolve, reject) => {
       const auth0Manager = new auth0.Management({
@@ -80,7 +66,19 @@ export default class auth {
     });
   }
 
-  // calls a hook once the profile got refreshed
+  /**
+   * @description the latest authorization result with access token
+   * @return {null|Object} authResult if the user was already logged in; null otherwise
+   */
+  getLatestAuthResult() {
+    return this.authResult;
+  }
+
+  /**
+   * @description calls a hook once the profile got refreshed
+   * @param profile user profile retrieved from auth0 manager
+   * @return {*}
+   */
   profileRefreshed(profile) {
     if (this.config.hooks && this.config.hooks.profileRefreshed) {
       return this.config.hooks.profileRefreshed(profile);
@@ -88,11 +86,20 @@ export default class auth {
     return Promise.resolve();
   }
 
-  // calls a hook once the token got refreshed
+  /**
+   * @description Calls a hook once the token got refreshed
+   * @param authResult authorization result returned by auth0
+   * @return {*}
+   */
   tokenRefreshed(authResult) {
-    const tokenExpiresAt = JSON.stringify((authResult.expiresIn * 1000) + Date.now());
-    localStorageInteraction.setItem(tokenExpiresAtKey, tokenExpiresAt);
-    this.tokenRefreshHandle = scheduleRenewal(this.tokenRefreshHandle, () => this.ensureLoggedIn());
+    this.authResult = authResult;
+
+    if (this.tokenRefreshHandle) {
+      windowInteraction.clearTimeout(this.tokenRefreshHandle);
+    }
+    this.tokenRefreshHandle = windowInteraction.setTimeout(
+      () => this.ensureLoggedIn({ enableLockWidget: true }),
+      getRemainingMillisToTokenEpxiry(authResult));
 
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
       return this.config.hooks.tokenRefreshed(authResult);
@@ -100,11 +107,14 @@ export default class auth {
     return Promise.resolve();
   }
 
-  // calls a hook once the login should be removed
+  /**
+   * Calls a hook once the login should be removed
+   * @return {*}
+   */
   removeLogin() {
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      localStorageInteraction.removeItem(tokenExpiresAtKey);
+      this.authResult = null;
     }
 
     if (this.config.hooks && this.config.hooks.removeLogin) {
@@ -113,11 +123,14 @@ export default class auth {
     return Promise.resolve();
   }
 
-  // calls a hook to log out the user, and then interacts with Auth0 to actually log the user out
+  /**
+   * @description Calls a hook to log out the user, and then interacts with Auth0 to actually
+   * log the user out.
+   */
   logout() {
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      localStorageInteraction.removeItem(tokenExpiresAtKey);
+      this.authResult = null;
     }
 
     if (this.config) {
@@ -129,8 +142,23 @@ export default class auth {
     }
   }
 
-  // ensures the user is logged in
-  ensureLoggedIn() {
+  /**
+   * @description Try to login, first using an existing SSO session. If that fails and auth0 lock
+   * widget is not explicitly disabled, show auth0 lock to the user.
+   *
+   * @param {Object}     configuration object
+   * @param {Boolean}    configuration.enableLockWidget whether auth0 lock should open when SSO
+   *                     session is invalid; default = true
+   * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
+   *                     otherwise
+   */
+  ensureLoggedIn(configuration = { enableLockWidget: true }) {
+    // if there is still a valid token, there is no need to initiate the login process
+    const latestAuthResult = this.getLatestAuthResult();
+    if (latestAuthResult && getRemainingMillisToTokenEpxiry(latestAuthResult) > 0) {
+      return Promise.resolve();
+    }
+
     let options = {
       auth: {
         params: {
@@ -147,8 +175,12 @@ export default class auth {
     // The 1000ms here is guarantee that the websocket is finished loading
     return this.renewAuth()
       .catch((e) => {
-        this.log('Renew authorization did not succeed, falling back to login widget', e);
         this.removeLogin();
+        // if auth0 lock is not enabled, error out
+        if (!configuration.enableLockWidget) {
+          return Promise.reject(e);
+        }
+        this.log('Renew authorization did not succeed, falling back to login widget', e);
         return new Promise((resolve, reject) => {
           const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
           lock.on('authenticated', (authResult) => {
@@ -181,7 +213,11 @@ export default class auth {
       .then(profile => this.profileRefreshed(profile));
   }
 
-  // renews the authentication
+  /**
+   * @description renews the authentication
+   * @param {Number} retries current retry attempt number
+   * @return {Promise<any>}
+   */
   renewAuth(retries = 0) {
     const webAuth = new auth0.WebAuth({
       domain: this.config.domain,

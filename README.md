@@ -22,10 +22,12 @@ import Auth from 'auth0-sso-login';
 // create an instance of Auth
 let config = { /* ... */ };
 let auth = new Auth(config);
+// Optionally try to silently login the current user
+auth.ensureLoggedIn({ enableLockWidget: false })
+.catch(e => console.log('SSO session was invalid, user did not log in', e));
 
-// Verifies that the user is logged in
-// returns a promise, when succeeded, the user is logged in
-// and a valid JWT was provided.
+// Logs the user in returns a promise, when succeeded, the user is logged in
+// and a valid JWT was provided (via tokenRefreshed hook).
 // Schedules automatic background renewal of JWT based on its expiry time.
 // (it will be refresh in the 2/3 of the current token lifetime)
 auth.ensureLoggedIn()
@@ -37,7 +39,7 @@ auth.ensureLoggedIn()
     // be logged in automatically through Auth0's SSO feature, or
     // the Auth0Lock will handle the login, and only succeed after
     // the user successfully logged in.
-};
+});
 ```
 
 Several configuration options and hooks are provided to interact with the library.
