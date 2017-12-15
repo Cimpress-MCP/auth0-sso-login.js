@@ -1,6 +1,6 @@
 import windowInteraction from './window-interaction';
 
-export default class TokenExpiryManager {
+export default class tokenExpiryManager {
   constructor() {
     this.tokenExpiresAt = null;
     this.tokenRefreshHandle = null;

@@ -3,6 +3,13 @@ import auth0 from 'auth0-js';
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
 
+// static class making unit testing possible
+export class auth0LockFactory {
+  static createAuth0Lock(clientId, domain, options) {
+    return new Auth0Lock(clientId, domain, options);
+  }
+}
+
 // authentication class
 export default class auth {
   /**
@@ -159,7 +166,8 @@ export default class auth {
         }
         this.log('Renew authorization did not succeed, falling back to login widget', e);
         return new Promise((resolve, reject) => {
-          const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
+          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
+            options);
           lock.on('authenticated', (authResult) => {
             this.renewAuth()
               .then(() => {
