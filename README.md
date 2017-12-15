@@ -22,15 +22,15 @@ import Auth from 'auth0-sso-login';
 // create an instance of Auth
 let config = { /* ... */ };
 let auth = new Auth(config);
-// Optionally try to silently login the current user
-auth.ensureLoggedIn({ enableLockWidget: false })
-.catch(e => console.log('SSO session was invalid, user did not log in', e));
-
-// Logs the user in returns a promise, when succeeded, the user is logged in
+let defaultConfiguration = {
+  enableLockWidget: true,  // if Auth0's SSO fails, use Auth0Lock
+  forceTokenRefresh: false // force refresh even if there is a valid token available
+};
+// Logs the user in and returns a promise, when succeeded, the user is logged in
 // and a valid JWT was provided (via tokenRefreshed hook).
 // Schedules automatic background renewal of JWT based on its expiry time.
 // (it will be refresh in the 2/3 of the current token lifetime)
-auth.ensureLoggedIn()
+auth.ensureLoggedIn(defaultConfiguration)
 .then(() => console.log('user is logged in'))
 .catch(error => {
     console.error('an unexpected error occurred while logging in');
@@ -41,6 +41,14 @@ auth.ensureLoggedIn()
     // the user successfully logged in.
 });
 ```
+
+After the login process, the token is retrieved via `tokenRefreshed` hook, described in the
+configuration options bellow. The library also exposes its latest authorization result, which may or
+may not be set (depends on the success/failure of login process). This method can be used as
+a token provider for HTTP clients.
+```javascript
+let authResult = auth.getLatestAuthResult();
+``` 
 
 Several configuration options and hooks are provided to interact with the library.
 
