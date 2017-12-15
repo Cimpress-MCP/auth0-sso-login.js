@@ -1,26 +1,7 @@
 import Auth0Lock from 'auth0-lock';
 import auth0 from 'auth0-js';
-
-// static window interaction, mostly wrapped for enabling easier mocking through unit tests
-export class windowInteraction {
-  static updateWindow(url) {
-    window.location = url;
-  }
-
-  static setTimeout(func, delay) {
-    return window.setTimeout(func, delay);
-  }
-
-  static clearTimeout(timeoutId) {
-    window.clearTimeout(timeoutId);
-  }
-}
-
-// consider token expired after second third of its lifetime
-const getRemainingMillisToTokenEpxiry = (authResult) => {
-  const tokenExpiresAt = (authResult.expiresIn * 1000) + Date.now();
-  return Math.floor((tokenExpiresAt - Date.now()) / 3) * 2;
-};
+import windowInteraction from './window-interaction';
+import TokenExpiryManager from './token-expiry-manager';
 
 // authentication class
 export default class auth {
@@ -30,8 +11,8 @@ export default class auth {
    */
   constructor(config) {
     this.config = config || {};
-    this.tokenRefreshHandle = null;
     this.authResult = null;
+    this.tokenExpiryManager = new TokenExpiryManager();
   }
 
   /**
@@ -93,13 +74,8 @@ export default class auth {
    */
   tokenRefreshed(authResult) {
     this.authResult = authResult;
-
-    if (this.tokenRefreshHandle) {
-      windowInteraction.clearTimeout(this.tokenRefreshHandle);
-    }
-    this.tokenRefreshHandle = windowInteraction.setTimeout(
-      () => this.ensureLoggedIn({ enableLockWidget: true }),
-      getRemainingMillisToTokenEpxiry(authResult));
+    this.tokenExpiryManager.scheduleTokenRefresh(authResult,
+      () => this.ensureLoggedIn({ enableLockWidget: true, forceTokenRefresh: true }));
 
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
       return this.config.hooks.tokenRefreshed(authResult);
@@ -112,10 +88,8 @@ export default class auth {
    * @return {*}
    */
   removeLogin() {
-    if (this.tokenRefreshHandle) {
-      windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      this.authResult = null;
-    }
+    this.tokenExpiryManager.cancelTokenRefresh();
+    this.authResult = null;
 
     if (this.config.hooks && this.config.hooks.removeLogin) {
       return this.config.hooks.removeLogin();
@@ -128,10 +102,8 @@ export default class auth {
    * log the user out.
    */
   logout() {
-    if (this.tokenRefreshHandle) {
-      windowInteraction.clearTimeout(this.tokenRefreshHandle);
-      this.authResult = null;
-    }
+    this.tokenExpiryManager.cancelTokenRefresh();
+    this.authResult = null;
 
     if (this.config) {
       if (this.config.hooks && this.config.hooks.logout) {
@@ -151,13 +123,16 @@ export default class auth {
    * @param {Object}     configuration object
    * @param {Boolean}    configuration.enableLockWidget whether auth0 lock should open when SSO
    *                     session is invalid; default = true
+   * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
+   *                     be still valid; default = false
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
-  ensureLoggedIn(configuration = { enableLockWidget: true }) {
+  ensureLoggedIn(configuration = { enableLockWidget: true, forceTokenRefresh: false }) {
     // if there is still a valid token, there is no need to initiate the login process
     const latestAuthResult = this.getLatestAuthResult();
-    if (latestAuthResult && getRemainingMillisToTokenEpxiry(latestAuthResult) > 0) {
+    if (!configuration.forceTokenRefresh && latestAuthResult &&
+      this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
       return Promise.resolve();
     }
 
