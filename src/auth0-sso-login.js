@@ -143,8 +143,10 @@ export default class auth {
   }
 
   /**
-   * @description Try to login, first using an existing SSO session. If that fails and auth0 lock
-   * widget is not explicitly disabled, show auth0 lock to the user.
+   * @description Ensure user is logged in:
+   * 1. Check if there is an existing, valid token.
+   * 2. Try logging in using an existing SSO session.
+   * 3. If auth0 lock widget is not explicitly disabled, try logging in using auth0 lock.
    *
    * @param {Object}     configuration object
    * @param {Boolean}    configuration.enableLockWidget whether auth0 lock should open when SSO
