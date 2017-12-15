@@ -170,7 +170,7 @@ export default class auth {
               });
             });
         } else {
-          reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult.error });
+          reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
         }
       });
     })
