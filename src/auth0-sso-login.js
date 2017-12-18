@@ -1,27 +1,36 @@
-import Auth0Lock from 'auth0-lock';
 import auth0 from 'auth0-js';
-
-// static window interaction, mostly wrapped for enabling easier mocking through unit tests
-export class windowInteraction {
-  static updateWindow(url) {
-    window.location = url;
-  }
-}
+import windowInteraction from './window-interaction';
+import auth0LockFactory from './auth0-lock-factory';
+import TokenExpiryManager from './token-expiry-manager';
 
 // authentication class
 export default class auth {
-  // constructs the object with a given configuration
+  /**
+   * @constructor constructs the object with a given configuration
+   * @param {Object} config
+   */
   constructor(config) {
     this.config = config || {};
+    this.authResult = null;
+    this.tokenExpiryManager = new TokenExpiryManager();
   }
 
-  // logs the message to the console, or to a provided hook
+  /**
+   * @description logs the message to the console, or to a provided hook
+   * @param message to log
+   * @return {*|void}
+   */
   log(message) {
     const logFunc = (this.config.hooks ? this.config.hooks.log : undefined) || console.log;
     return logFunc(message);
   }
 
-  // gets the detailed profile with a call to the Auth0 Management API
+  /**
+   * @description gets the detailed profile with a call to the Auth0 Management API
+   * @param idToken
+   * @param sub
+   * @return {Promise<any>} resolved promise with user profile; rejected promise with error
+   */
   getDetailedProfile(idToken, sub) {
     return new Promise((resolve, reject) => {
       const auth0Manager = new auth0.Management({
@@ -38,7 +47,19 @@ export default class auth {
     });
   }
 
-  // calls a hook once the profile got refreshed
+  /**
+   * @description the latest authorization result with access token
+   * @return {null|Object} authResult if the user was already logged in; null otherwise
+   */
+  getLatestAuthResult() {
+    return this.authResult;
+  }
+
+  /**
+   * @description calls a hook once the profile got refreshed
+   * @param profile user profile retrieved from auth0 manager
+   * @return {*}
+   */
   profileRefreshed(profile) {
     if (this.config.hooks && this.config.hooks.profileRefreshed) {
       return this.config.hooks.profileRefreshed(profile);
@@ -46,25 +67,48 @@ export default class auth {
     return Promise.resolve();
   }
 
-  // calls a hook once the token got refreshed
+  /**
+   * @description Calls a hook once the token got refreshed
+   * @param authResult authorization result returned by auth0
+   * @return {*}
+   */
   tokenRefreshed(authResult) {
+    this.authResult = authResult;
+    this.tokenExpiryManager.scheduleTokenRefresh(authResult,
+      () => this.ensureLoggedIn({ enableLockWidget: true, forceTokenRefresh: true }));
+
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
       return this.config.hooks.tokenRefreshed(authResult);
     }
     return Promise.resolve();
   }
 
-  // calls a hook once the login should be removed
+  /**
+   * Calls a hook once the login should be removed
+   * @return {*}
+   */
   removeLogin() {
+    this.tokenExpiryManager.cancelTokenRefresh();
+    this.authResult = null;
+
     if (this.config.hooks && this.config.hooks.removeLogin) {
       return this.config.hooks.removeLogin();
     }
     return Promise.resolve();
   }
 
-  // calls a hook to log out the user, and then interacts with Auth0 to actually log the user out
+  /**
+   * @description Calls a hook to removeLogin and logout the user, and then interacts with Auth0 to
+   * actually log the user out.
+   */
   logout() {
+    this.tokenExpiryManager.cancelTokenRefresh();
+    this.authResult = null;
+
     if (this.config) {
+      if (this.config.hooks && this.config.hooks.removeLogin) {
+        this.config.hooks.removeLogin();
+      }
       if (this.config.hooks && this.config.hooks.logout) {
         this.config.hooks.logout();
       }
@@ -73,8 +117,28 @@ export default class auth {
     }
   }
 
-  // ensures the user is logged in
-  ensureLoggedIn() {
+  /**
+   * @description Ensure user is logged in:
+   * 1. Check if there is an existing, valid token.
+   * 2. Try logging in using an existing SSO session.
+   * 3. If auth0 lock widget is not explicitly disabled, try logging in using auth0 lock.
+   *
+   * @param {Object}     configuration object
+   * @param {Boolean}    configuration.enableLockWidget whether auth0 lock should open when SSO
+   *                     session is invalid; default = true
+   * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
+   *                     be still valid; default = false
+   * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
+   *                     otherwise
+   */
+  ensureLoggedIn(configuration = { enableLockWidget: true, forceTokenRefresh: false }) {
+    // if there is still a valid token, there is no need to initiate the login process
+    const latestAuthResult = this.getLatestAuthResult();
+    if (!configuration.forceTokenRefresh && latestAuthResult &&
+      this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
+      return Promise.resolve();
+    }
+
     let options = {
       auth: {
         params: {
@@ -91,9 +155,15 @@ export default class auth {
     // The 1000ms here is guarantee that the websocket is finished loading
     return this.renewAuth()
       .catch((e) => {
+        this.removeLogin();
+        // if auth0 lock is not enabled, error out
+        if (!configuration.enableLockWidget) {
+          return Promise.reject(e);
+        }
         this.log('Renew authorization did not succeed, falling back to login widget', e);
         return new Promise((resolve, reject) => {
-          const lock = new Auth0Lock(this.config.clientId, this.config.domain, options);
+          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
+            options);
           lock.on('authenticated', (authResult) => {
             this.renewAuth()
               .then(() => {
@@ -124,21 +194,11 @@ export default class auth {
       .then(profile => this.profileRefreshed(profile));
   }
 
-  // starts a background process to ensure the user continues to be logged in
-  stayLoggedIn() {
-    const minute = 1000 * 60;
-    const hour = minute * 60;
-
-    let lastRefresh = Date.now();
-    setInterval(() => {
-      if (Date.now() - lastRefresh >= hour) {
-        this.ensureLoggedIn();
-        lastRefresh = Date.now();
-      }
-    }, minute);
-  }
-
-  // renews the authentication
+  /**
+   * @description renews the authentication
+   * @param {Number} retries current retry attempt number
+   * @return {Promise<any>}
+   */
   renewAuth(retries = 0) {
     const webAuth = new auth0.WebAuth({
       domain: this.config.domain,
@@ -155,9 +215,6 @@ export default class auth {
       webAuth.renewAuth(renewOptions, (err, authResult) => {
         if (err) {
           this.log(`Failed to update ID token on retry ${retries}: ${JSON.stringify(err)}`);
-          if (err.error === 'login_required') {
-            this.removeLogin();
-          }
           reject(err);
           return;
         }

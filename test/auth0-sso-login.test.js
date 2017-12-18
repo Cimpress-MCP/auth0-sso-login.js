@@ -1,6 +1,14 @@
+/* eslint-disable no-unused-expressions */
 import { describe, it, beforeEach, afterEach } from 'mocha';
 import sinon from 'sinon';
-import Auth, { windowInteraction } from '../src/auth0-sso-login';
+import sinonChai from 'sinon-chai';
+import chai from 'chai';
+import Auth from '../src/auth0-sso-login';
+import auth0LockFactory from '../src/auth0-lock-factory';
+import windowInteraction from '../src/window-interaction';
+
+const expect = chai.expect;
+chai.use(sinonChai);
 
 let sandbox;
 beforeEach(() => {
@@ -8,7 +16,7 @@ beforeEach(() => {
 });
 afterEach(() => sandbox.restore());
 
-describe('auth.js', () => {
+describe('auth0-sso-login.js', () => {
   describe('when notifying hooks', () => {
     describe('for logging', () => {
       it('logs to provided log function', () => {
@@ -59,82 +67,198 @@ describe('auth.js', () => {
         const mock = sandbox.mock(hook);
         const authResult = { unitTestAuthResult: 'unit-test-auth-result' };
         mock.expects('tokenRefreshed').withExactArgs(authResult).once().resolves();
+        const tokenExpiryManager = { scheduleTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('scheduleTokenRefresh').withExactArgs(authResult, sinon.match.func);
         const auth = new Auth({ hooks: { tokenRefreshed: hook.tokenRefreshed } });
+        auth.tokenExpiryManager = tokenExpiryManager;
         return auth.tokenRefreshed(authResult)
           .then(() => {
             mock.verify();
+            tokenExpiryManagerMock.verify();
           });
       });
 
       it('does not fail when no hook provided', () => {
         const authResult = { unitTestAuthResult: 'unit-test-auth-result' };
+        const tokenExpiryManager = { scheduleTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('scheduleTokenRefresh').withExactArgs(authResult, sinon.match.func);
         const auth = new Auth();
+        auth.tokenExpiryManager = tokenExpiryManager;
 
         // return promise, to ensure it didn't fail
-        return auth.tokenRefreshed(authResult);
+        return auth.tokenRefreshed(authResult)
+          .then(() => tokenExpiryManagerMock.verify());
       });
     });
 
     describe('for logout', () => {
       it('invokes hook', () => {
-        const hook = { logout() { } };
-        const mock = sandbox.mock(hook);
-        mock.expects('logout').once().resolves();
-        const auth = new Auth({ hooks: { logout: hook.logout } });
+        const logoutHook = sandbox.stub();
+        const removeLoginHook = sandbox.stub();
+        const tokenExpiryManager = { cancelTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('cancelTokenRefresh').once();
         const windowInteractionMock = sandbox.mock(windowInteraction);
         windowInteractionMock.expects('updateWindow').once();
+
+        const auth = new Auth({ hooks: { logout: logoutHook, removeLogin: removeLoginHook } });
+        auth.tokenExpiryManager = tokenExpiryManager;
+        auth.authResult = { testResult: 'unit-test-result' };
+
         auth.logout();
-        mock.verify();
+        expect(auth.getLatestAuthResult()).to.be.null;
+        expect(logoutHook.calledOnce).to.be.true;
+        expect(removeLoginHook.calledOnce).to.be.true;
         windowInteractionMock.verify();
+        tokenExpiryManagerMock.verify();
       });
 
       it('does not fail when no hook provided', () => {
-        const auth = new Auth();
-        // const authMock = sandbox.mock(auth);
+        const tokenExpiryManager = { cancelTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('cancelTokenRefresh').once();
         const windowInteractionMock = sandbox.mock(windowInteraction);
         windowInteractionMock.expects('updateWindow').once();
+
+        const auth = new Auth();
+        auth.tokenExpiryManager = tokenExpiryManager;
+        auth.authResult = { testResult: 'unit-test-result' };
+
         auth.logout();
+        expect(auth.getLatestAuthResult()).to.be.null;
         windowInteractionMock.verify();
+        tokenExpiryManagerMock.verify();
       });
     });
-  });
 
-  describe('stayLoggedIn()', () => {
-    const testCases = [
-      { name: 'never', delay: 60 * 60 * 1000 - 1, callAmount: 0 },
-      { name: 'once', delay: 1 * 60 * 60 * 1000, callAmount: 1 },
-      { name: 'twice', delay: 2 * 60 * 60 * 1000, callAmount: 2 },
-      { name: 'ten times', delay: 10 * 60 * 60 * 1000, callAmount: 10 },
-    ];
-    testCases.map((testCase) => {
-      it(`triggers ensureLoggedIn() ${testCase.name}`, () => {
-        const clock = sandbox.useFakeTimers();
-        const auth = new Auth();
-        const mock = sandbox.mock(auth);
-        mock.expects('ensureLoggedIn').exactly(testCase.callAmount);
-        auth.stayLoggedIn();
-        clock.tick(testCase.delay);
+    describe('for remove login', () => {
+      it('invokes hook', () => {
+        const hook = { removeLogin() { } };
+        const mock = sandbox.mock(hook);
+        mock.expects('removeLogin').once().resolves();
+        const tokenExpiryManager = { cancelTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('cancelTokenRefresh').once();
+
+        const auth = new Auth({ hooks: { removeLogin: hook.removeLogin } });
+        auth.tokenExpiryManager = tokenExpiryManager;
+        auth.authResult = { testResult: 'unit-test-result' };
+
+        auth.removeLogin();
+        expect(auth.getLatestAuthResult()).to.be.null;
+        tokenExpiryManagerMock.verify();
         mock.verify();
+      });
+
+      it('does not fail when no hook provided', () => {
+        const tokenExpiryManager = { cancelTokenRefresh() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        tokenExpiryManagerMock.expects('cancelTokenRefresh').once();
+        const auth = new Auth();
+        auth.tokenExpiryManager = tokenExpiryManager;
+        auth.authResult = { testResult: 'unit-test-result' };
+
+        auth.removeLogin();
+        expect(auth.getLatestAuthResult()).to.be.null;
+        tokenExpiryManagerMock.verify();
       });
     });
   });
 
   describe('ensureLoggedIn()', () => {
-    it('follows correct procedure', () => {
-      const auth = new Auth();
-      const mock = sandbox.mock(auth);
-      const loginInfo = { idToken: 'unit-test-id-token', sub: 'unit-test-sub' };
-      const profile = { sub: loginInfo.sub };
-      mock.expects('renewAuth').once().resolves(loginInfo);
-      mock.expects('getDetailedProfile').withExactArgs(loginInfo.idToken, loginInfo.sub).once().resolves(profile);
-      mock.expects('profileRefreshed').withExactArgs(profile).once().resolves();
+    const catchableError = 'catchable-unit-test-error';
+    const testLoginInfo = { idToken: 'unit-test-id-token', sub: 'unit-test-sub' };
+    const testProfile = { sub: testLoginInfo.sub };
+    const testAuthResult = { idToken: testLoginInfo.idToken, accessToken: 'unit-test-access-token' };
+    const testCases = [
+      {
+        name: 'follows login procedure with auth0lock',
+        configuration: { enableLockWidget: true },
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().rejects('error');
+          objects.authMock.expects('removeLogin').once();
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub)
+            .resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+          objects.auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func)
+            .callsFake((event, cb) => cb(testAuthResult));
+          objects.auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once();
+          objects.auth0LockMock.expects('getUserInfo').withExactArgs(testAuthResult.accessToken, sinon.match.func)
+            .callsFake((accessToken, cb) => cb(null, testProfile));
+          objects.auth0LockFactoryMock.expects('createAuth0Lock').once().returns(objects.auth0Lock);
+        },
+      },
+      // add test when auth0 lock fails to login (once we handle that failure)
+      {
+        name: 'follows login procedure without auth0lock',
+        configuration: { enableLockWidget: false },
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+        },
+      },
+      {
+        name: 'does not call auth0lock if it is disabled and the sso auth failed',
+        configuration: { enableLockWidget: false },
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().rejects(catchableError);
+          objects.authMock.expects('removeLogin').once();
+        },
+      },
+      {
+        name: 'returns immediately if valid token is available',
+        configuration: { enableLockWidget: false },
+        setExpectations(objects) {
+          // eslint-disable-next-line no-param-reassign
+          objects.auth.authResult = testAuthResult;
+          objects.tokenExpiryManagerMock.expects('getRemainingMillisToTokenExpiry').once().returns(1000);
+          objects.authMock.expects('renewAuth').never();
+        },
+      },
+      {
+        name: 'follows login procedure if valid token is available but forceTokenRefresh is set',
+        configuration: { enableLockWidget: false, forceTokenRefresh: true },
+        setExpectations(objects) {
+          // eslint-disable-next-line no-param-reassign
+          objects.auth.authResult = testAuthResult;
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+        },
+      },
+    ];
 
-      const promise = auth.ensureLoggedIn();
+    return testCases.map(testCase =>
+      it(testCase.name, () => {
+        const auth0Lock = { on() {}, show() {}, hide() {}, getUserInfo() {} };
+        const auth0LockMock = sandbox.mock(auth0Lock);
+        const auth0LockFactoryMock = sandbox.mock(auth0LockFactory);
+        const tokenExpiryManager = { getRemainingMillisToTokenExpiry() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        const auth = new Auth();
+        auth.tokenExpiryManager = tokenExpiryManager;
+        const authMock = sandbox.mock(auth);
 
-      return promise
-        .then(() => {
-          mock.verify();
-        });
-    });
+        testCase.setExpectations(
+          { auth, authMock, tokenExpiryManagerMock, auth0LockFactoryMock, auth0Lock, auth0LockMock },
+        );
+
+        return auth.ensureLoggedIn(testCase.configuration)
+          .then(() => {
+            authMock.verify();
+            auth0LockFactoryMock.verify();
+            auth0LockMock.verify();
+            tokenExpiryManagerMock.verify();
+          })
+          .catch((e) => {
+            if (e.name !== catchableError) {
+              throw e;
+            }
+          });
+      }));
   });
 });
