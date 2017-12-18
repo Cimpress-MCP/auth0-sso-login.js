@@ -1,14 +1,7 @@
-import Auth0Lock from 'auth0-lock';
 import auth0 from 'auth0-js';
 import windowInteraction from './window-interaction';
+import auth0LockFactory from './auth0-lock-factory';
 import TokenExpiryManager from './token-expiry-manager';
-
-// static class making unit testing possible
-export class auth0LockFactory {
-  static createAuth0Lock(clientId, domain, options) {
-    return new Auth0Lock(clientId, domain, options);
-  }
-}
 
 // authentication class
 export default class auth {

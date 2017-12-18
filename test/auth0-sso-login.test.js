@@ -3,7 +3,8 @@ import { describe, it, beforeEach, afterEach } from 'mocha';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import chai from 'chai';
-import Auth, { Auth0LockFactory } from '../src/auth0-sso-login';
+import Auth from '../src/auth0-sso-login';
+import auth0LockFactory from '../src/auth0-lock-factory';
 import windowInteraction from '../src/window-interaction';
 
 const expect = chai.expect;
@@ -175,57 +176,58 @@ describe('auth0-sso-login.js', () => {
       {
         name: 'follows login procedure with auth0lock',
         configuration: { enableLockWidget: true },
-        setExpectations(auth, authMock, tokenExpiryManagerMock, auth0LockFactoryMock, auth0Lock, auth0LockMock) {
-          authMock.expects('renewAuth').once().rejects('error');
-          authMock.expects('removeLogin').once();
-          authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
-          authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
-          auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func)
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().rejects('error');
+          objects.authMock.expects('removeLogin').once();
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub)
+            .resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+          objects.auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func)
             .callsFake((event, cb) => cb(testAuthResult));
-          auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once();
-          auth0LockMock.expects('getUserInfo').withExactArgs(testAuthResult.accessToken, sinon.match.func)
+          objects.auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once();
+          objects.auth0LockMock.expects('getUserInfo').withExactArgs(testAuthResult.accessToken, sinon.match.func)
             .callsFake((accessToken, cb) => cb(null, testProfile));
-          auth0LockFactoryMock.expects('createAuth0Lock').once().returns(auth0Lock);
+          objects.auth0LockFactoryMock.expects('createAuth0Lock').once().returns(objects.auth0Lock);
         },
       },
       // add test when auth0 lock fails to login (once we handle that failure)
       {
         name: 'follows login procedure without auth0lock',
         configuration: { enableLockWidget: false },
-        setExpectations(auth, authMock) {
-          authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
-          authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
         },
       },
       {
         name: 'does not call auth0lock if it is disabled and the sso auth failed',
         configuration: { enableLockWidget: false },
-        setExpectations(auth, authMock) {
-          authMock.expects('renewAuth').once().rejects(catchableError);
-          authMock.expects('removeLogin').once();
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().rejects(catchableError);
+          objects.authMock.expects('removeLogin').once();
         },
       },
       {
         name: 'returns immediately if valid token is available',
         configuration: { enableLockWidget: false },
-        setExpectations(auth, authMock, tokenExpiryManagerMock) {
+        setExpectations(objects) {
           // eslint-disable-next-line no-param-reassign
-          auth.authResult = testAuthResult;
-          tokenExpiryManagerMock.expects('getRemainingMillisToTokenExpiry').once().returns(1000);
-          authMock.expects('renewAuth').never();
+          objects.auth.authResult = testAuthResult;
+          objects.tokenExpiryManagerMock.expects('getRemainingMillisToTokenExpiry').once().returns(1000);
+          objects.authMock.expects('renewAuth').never();
         },
       },
       {
         name: 'follows login procedure if valid token is available but forceTokenRefresh is set',
         configuration: { enableLockWidget: false, forceTokenRefresh: true },
-        setExpectations(auth, authMock) {
+        setExpectations(objects) {
           // eslint-disable-next-line no-param-reassign
-          auth.authResult = testAuthResult;
-          authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
-          authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
+          objects.auth.authResult = testAuthResult;
+          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
+          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
+          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
         },
       },
     ];
@@ -234,15 +236,16 @@ describe('auth0-sso-login.js', () => {
       it(testCase.name, () => {
         const auth0Lock = { on() {}, show() {}, hide() {}, getUserInfo() {} };
         const auth0LockMock = sandbox.mock(auth0Lock);
-        const auth0LockFactoryMock = sandbox.mock(Auth0LockFactory);
+        const auth0LockFactoryMock = sandbox.mock(auth0LockFactory);
         const tokenExpiryManager = { getRemainingMillisToTokenExpiry() {} };
         const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
         const auth = new Auth();
         auth.tokenExpiryManager = tokenExpiryManager;
         const authMock = sandbox.mock(auth);
 
-        testCase.setExpectations(auth, authMock, tokenExpiryManagerMock, auth0LockFactoryMock,
-          auth0Lock, auth0LockMock);
+        testCase.setExpectations(
+          { auth, authMock, tokenExpiryManagerMock, auth0LockFactoryMock, auth0Lock, auth0LockMock },
+        );
 
         return auth.ensureLoggedIn(testCase.configuration)
           .then(() => {
