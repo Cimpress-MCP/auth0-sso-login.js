@@ -92,7 +92,7 @@ let config = {
       // once a new token was retrieved from auth0
       // a typical use case is to store the token for calling other services
     },
-    // called when there's a problem with the current user, for example an invalid token
+    // called before logout or when there's a problem with the current user, for example an invalid token
     // this gives implementors the option to remove the current user's details from the store if saved
     removeLogin() {
       // typical use case it to provide the same method as for logout

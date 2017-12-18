@@ -98,14 +98,17 @@ export default class auth {
   }
 
   /**
-   * @description Calls a hook to log out the user, and then interacts with Auth0 to actually
-   * log the user out.
+   * @description Calls a hook to removeLogin and logout the user, and then interacts with Auth0 to
+   * actually log the user out.
    */
   logout() {
     this.tokenExpiryManager.cancelTokenRefresh();
     this.authResult = null;
 
     if (this.config) {
+      if (this.config.hooks && this.config.hooks.removeLogin) {
+        this.config.hooks.removeLogin();
+      }
       if (this.config.hooks && this.config.hooks.logout) {
         this.config.hooks.logout();
       }

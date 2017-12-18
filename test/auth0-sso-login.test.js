@@ -95,22 +95,22 @@ describe('auth0-sso-login.js', () => {
 
     describe('for logout', () => {
       it('invokes hook', () => {
-        const hook = { logout() { } };
-        const mock = sandbox.mock(hook);
-        mock.expects('logout').once().resolves();
+        const logoutHook = sandbox.stub();
+        const removeLoginHook = sandbox.stub();
         const tokenExpiryManager = { cancelTokenRefresh() {} };
         const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
         tokenExpiryManagerMock.expects('cancelTokenRefresh').once();
         const windowInteractionMock = sandbox.mock(windowInteraction);
         windowInteractionMock.expects('updateWindow').once();
 
-        const auth = new Auth({ hooks: { logout: hook.logout } });
+        const auth = new Auth({ hooks: { logout: logoutHook, removeLogin: removeLoginHook } });
         auth.tokenExpiryManager = tokenExpiryManager;
         auth.authResult = { testResult: 'unit-test-result' };
 
         auth.logout();
         expect(auth.getLatestAuthResult()).to.be.null;
-        mock.verify();
+        expect(logoutHook.calledOnce).to.be.true;
+        expect(removeLoginHook.calledOnce).to.be.true;
         windowInteractionMock.verify();
         tokenExpiryManagerMock.verify();
       });
