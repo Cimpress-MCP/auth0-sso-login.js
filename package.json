@@ -27,15 +27,15 @@
   },
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
-    "auth0-js": "^8.9.3",
+    "auth0-js": "^8.12.1",
     "auth0-lock": "^10.20.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.0",
+    "chai": "^4.1.2",
     "ci-build-tools": "1.0.9",
     "commander": "2.11.0",
-    "chai": "^4.1.2",
     "eslint": "4.5.0",
     "eslint-config-airbnb-base": "11.3.1",
     "eslint-plugin-import": "2.7.0",
