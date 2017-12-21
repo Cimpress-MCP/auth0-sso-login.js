@@ -28,7 +28,7 @@
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
     "auth0-js": "^8.12.1",
-    "auth0-lock": "^10.20.0"
+    "auth0-lock": "^10.24.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
