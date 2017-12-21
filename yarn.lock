@@ -146,7 +146,7 @@ asynckit@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
 
-auth0-js@^8.12.1:
+auth0-js@^8.12.1, auth0-js@~8.12.1:
   version "8.12.1"
   resolved "https://registry.yarnpkg.com/auth0-js/-/auth0-js-8.12.1.tgz#39ce288aef4301687d8bea25267273ea15cdae78"
   dependencies:
@@ -157,22 +157,11 @@ auth0-js@^8.12.1:
     url-join "^1.1.0"
     winchan "^0.2.0"
 
-auth0-js@~8.11.2:
-  version "8.11.3"
-  resolved "https://registry.yarnpkg.com/auth0-js/-/auth0-js-8.11.3.tgz#97385a17c8aad1cd612bf82fded328a4396eebdf"
+auth0-lock@^10.24.2:
+  version "10.24.2"
+  resolved "https://registry.yarnpkg.com/auth0-lock/-/auth0-lock-10.24.2.tgz#4a3fc9d8539816378b9f70b0473a4b8c9db8c90e"
   dependencies:
-    base64-js "^1.2.0"
-    idtoken-verifier "^1.1.0"
-    qs "^6.4.0"
-    superagent "^3.3.1"
-    url-join "^1.1.0"
-    winchan "^0.2.0"
-
-auth0-lock@^10.20.0:
-  version "10.24.1"
-  resolved "https://registry.yarnpkg.com/auth0-lock/-/auth0-lock-10.24.1.tgz#f85a87c3a9309b9a7a7df369040fc663bde6ec9c"
-  dependencies:
-    auth0-js "~8.11.2"
+    auth0-js "~8.12.1"
     blueimp-md5 "2.3.1"
     fbjs "^0.3.1"
     idtoken-verifier "^1.0.1"
@@ -772,8 +761,8 @@ callsites@^0.2.0:
   resolved "https://registry.yarnpkg.com/callsites/-/callsites-0.2.0.tgz#afab96262910a7f33c19a5775825c69f34e350ca"
 
 caniuse-lite@^1.0.30000780:
-  version "1.0.30000783"
-  resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30000783.tgz#9b5499fb1b503d2345d12aa6b8612852f4276ffd"
+  version "1.0.30000784"
+  resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30000784.tgz#129ced74e9a1280a441880b6cd2bce30ef59e6c0"
 
 caseless@~0.12.0:
   version "0.12.0"
@@ -1069,8 +1058,8 @@ doctrine@^2.0.0:
     esutils "^2.0.2"
 
 dom-helpers@^3.2.0:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/dom-helpers/-/dom-helpers-3.2.1.tgz#3203e07fed217bd1f424b019735582fc37b2825a"
+  version "3.3.1"
+  resolved "https://registry.yarnpkg.com/dom-helpers/-/dom-helpers-3.3.1.tgz#fc1a4e15ffdf60ddde03a480a9c0fece821dd4a6"
 
 ecc-jsbn@~0.1.1:
   version "0.1.1"
@@ -1078,9 +1067,15 @@ ecc-jsbn@~0.1.1:
   dependencies:
     jsbn "~0.1.0"
 
+electron-releases@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/electron-releases/-/electron-releases-2.1.0.tgz#c5614bf811f176ce3c836e368a0625782341fd4e"
+
 electron-to-chromium@^1.3.28:
-  version "1.3.28"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.28.tgz#8dd4e6458086644e9f9f0a1cf32e2a1f9dffd9ee"
+  version "1.3.30"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.30.tgz#9666f532a64586651fc56a72513692e820d06a80"
+  dependencies:
+    electron-releases "^2.1.0"
 
 encoding@^0.1.11:
   version "0.1.12"
