@@ -209,6 +209,8 @@ export default class auth {
       usePostMessage: true,
       audience: this.config.audience,
       responseType: 'id_token token',
+      postMessageOrigin: window.location.origin ||
+          `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
     };
 
     return new Promise((resolve, reject) => {
