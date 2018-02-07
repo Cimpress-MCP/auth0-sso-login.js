@@ -172,7 +172,7 @@ export default class auth {
                   lock.hide();
                   if (error) {
                     this.log('Error while retrieving user information after successful Auth0Lock authentication', error);
-                    reject(error);
+                    resolve({ idToken: authResult.idToken, sub: null });
                   } else {
                     resolve({
                       idToken: authResult.idToken,
@@ -183,7 +183,7 @@ export default class auth {
               })
               .catch((error) => {
                 this.log('Error while calling renewAuth after successful Auth0Lock authentication', error);
-                reject(error);
+                resolve({ idToken: authResult.idToken, sub: null });
               });
           });
 
