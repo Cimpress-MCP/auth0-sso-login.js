@@ -158,7 +158,6 @@ export default class auth {
       .catch((e) => {
         // if auth0 lock is not enabled, error out
         if (!configuration.enableLockWidget) {
-          this.removeLogin();
           return Promise.reject(e);
         }
         this.log('Renew authorization did not succeed, falling back to login widget', e);
