@@ -153,7 +153,7 @@ export default class auth {
       options = Object.assign(options, this.config.auth0LockOptions);
     }
 
-    return this.renewAuthSequencePromise
+    const authPromise = this.renewAuthSequencePromise
       .then(() => this.renewAuth())
       .catch((e) => {
         this.removeLogin();
@@ -197,6 +197,10 @@ export default class auth {
       })
       .then(loginInfo => this.getDetailedProfile(loginInfo.idToken, loginInfo.sub))
       .then(profile => this.profileRefreshed(profile));
+
+    this.renewAuthSequencePromise = authPromise.catch(() => { /* ignore since renewAuthSequcne may never be a rejected promise to have successful continuations */ });
+
+    return authPromise;
   }
 
   /**
