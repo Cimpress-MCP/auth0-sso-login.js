@@ -178,7 +178,6 @@ describe('auth0-sso-login.js', () => {
         configuration: { enableLockWidget: true },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().rejects('error');
-          objects.authMock.expects('removeLogin').once();
           objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
           objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub)
             .resolves(testProfile);
