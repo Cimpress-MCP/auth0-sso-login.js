@@ -156,9 +156,9 @@ export default class auth {
     const authPromise = this.renewAuthSequencePromise
       .then(() => this.renewAuth())
       .catch((e) => {
-        this.removeLogin();
         // if auth0 lock is not enabled, error out
         if (!configuration.enableLockWidget) {
+          this.removeLogin();
           return Promise.reject(e);
         }
         this.log('Renew authorization did not succeed, falling back to login widget', e);
@@ -196,7 +196,11 @@ export default class auth {
         });
       })
       .then(loginInfo => this.getDetailedProfile(loginInfo.idToken, loginInfo.sub))
-      .then(profile => this.profileRefreshed(profile));
+      .then(profile => this.profileRefreshed(profile))
+      .catch((err) => {
+        this.removeLogin();
+        throw err;
+      });
 
     this.renewAuthSequencePromise = authPromise.catch(() => { /* ignore since renewAuthSequcne may never be a rejected promise to have successful continuations */ });
 
