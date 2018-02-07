@@ -171,7 +171,7 @@ export default class auth {
                 lock.getUserInfo(authResult.accessToken, (error, profile) => {
                   lock.hide();
                   if (error) {
-                    this.log(error);
+                    this.log('Error while retrieving user information after successful Auth0Lock authentication', error);
                     reject(error);
                   } else {
                     resolve({
@@ -180,6 +180,10 @@ export default class auth {
                     });
                   }
                 });
+              })
+              .catch((error) => {
+                this.log('Error while calling renewAuth after successful Auth0Lock authentication', error);
+                reject(error);
               });
           });
 
