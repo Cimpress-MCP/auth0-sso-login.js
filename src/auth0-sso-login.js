@@ -13,6 +13,7 @@ export default class auth {
     this.config = config || {};
     this.authResult = null;
     this.tokenExpiryManager = new TokenExpiryManager();
+    this.renewAuthSequencePromise = Promise.resolve();
   }
 
   /**
@@ -152,8 +153,8 @@ export default class auth {
       options = Object.assign(options, this.config.auth0LockOptions);
     }
 
-    // The 1000ms here is guarantee that the websocket is finished loading
-    return this.renewAuth()
+    return this.renewAuthSequencePromise
+      .then(() => this.renewAuth())
       .catch((e) => {
         this.removeLogin();
         // if auth0 lock is not enabled, error out
