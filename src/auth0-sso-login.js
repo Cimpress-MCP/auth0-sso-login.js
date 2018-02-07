@@ -194,8 +194,16 @@ export default class auth {
           lock.show();
         });
       })
-      .then(loginInfo => this.getDetailedProfile(loginInfo.idToken, loginInfo.sub))
-      .then(profile => this.profileRefreshed(profile))
+      .then((loginInfo) => {
+        if (loginInfo.idToken && loginInfo.sub) {
+          return this.getDetailedProfile(loginInfo.idToken, loginInfo.sub)
+            .then(profile => this.profileRefreshed(profile))
+            .catch((err) => {
+              this.log('Failed to get detailed profile information', err);
+            });
+        }
+        return Promise.resolve();
+      })
       .catch((err) => {
         this.removeLogin();
         throw err;
