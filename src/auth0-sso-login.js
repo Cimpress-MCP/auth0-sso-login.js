@@ -13,6 +13,7 @@ export default class auth {
     this.config = config || {};
     this.authResult = null;
     this.tokenExpiryManager = new TokenExpiryManager();
+    this.renewAuthSequencePromise = Promise.resolve();
   }
 
   /**
@@ -152,10 +153,9 @@ export default class auth {
       options = Object.assign(options, this.config.auth0LockOptions);
     }
 
-    // The 1000ms here is guarantee that the websocket is finished loading
-    return this.renewAuth()
+    const authPromise = this.renewAuthSequencePromise
+      .then(() => this.renewAuth())
       .catch((e) => {
-        this.removeLogin();
         // if auth0 lock is not enabled, error out
         if (!configuration.enableLockWidget) {
           return Promise.reject(e);
@@ -170,8 +170,8 @@ export default class auth {
                 lock.getUserInfo(authResult.accessToken, (error, profile) => {
                   lock.hide();
                   if (error) {
-                    this.log(error);
-                    reject(error);
+                    this.log('Error while retrieving user information after successful Auth0Lock authentication', error);
+                    resolve({ idToken: authResult.idToken, sub: null });
                   } else {
                     resolve({
                       idToken: authResult.idToken,
@@ -179,6 +179,10 @@ export default class auth {
                     });
                   }
                 });
+              })
+              .catch((error) => {
+                this.log('Error while calling renewAuth after successful Auth0Lock authentication', error);
+                resolve({ idToken: authResult.idToken, sub: null });
               });
           });
 
@@ -190,8 +194,24 @@ export default class auth {
           lock.show();
         });
       })
-      .then(loginInfo => this.getDetailedProfile(loginInfo.idToken, loginInfo.sub))
-      .then(profile => this.profileRefreshed(profile));
+      .then((loginInfo) => {
+        if (loginInfo.idToken && loginInfo.sub) {
+          return this.getDetailedProfile(loginInfo.idToken, loginInfo.sub)
+            .then(profile => this.profileRefreshed(profile))
+            .catch((err) => {
+              this.log('Failed to get detailed profile information', err);
+            });
+        }
+        return Promise.resolve();
+      })
+      .catch((err) => {
+        this.removeLogin();
+        throw err;
+      });
+
+    this.renewAuthSequencePromise = authPromise.catch(() => { /* ignore since renewAuthSequcne may never be a rejected promise to have successful continuations */ });
+
+    return authPromise;
   }
 
   /**
