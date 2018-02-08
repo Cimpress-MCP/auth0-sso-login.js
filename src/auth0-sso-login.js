@@ -162,13 +162,11 @@ export default class auth {
         }
         this.log({ title: 'Renew authorization did not succeed, falling back to login widget', error: e });
         return new Promise((resolve, reject) => {
-          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
-            options);
+          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain, options);
           lock.on('authenticated', (authResult) => {
             this.renewAuth()
               .then(() => {
                 lock.getUserInfo(authResult.accessToken, (error, profile) => {
-                  lock.hide();
                   if (error) {
                     this.log({ title: 'Error while retrieving user information after successful Auth0Lock authentication', error });
                     resolve({ idToken: authResult.idToken, sub: null });
@@ -183,6 +181,10 @@ export default class auth {
               .catch((error) => {
                 this.log({ title: 'Error while calling renewAuth after successful Auth0Lock authentication', error });
                 resolve({ idToken: authResult.idToken, sub: null });
+              })
+              .finally(() => {
+                // If login was successful hide the lock widget no matter what
+                lock.hide();
               });
           });
 
