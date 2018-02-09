@@ -66,7 +66,7 @@ describe('auth0-sso-login.js', () => {
         const hook = { tokenRefreshed() { } };
         const mock = sandbox.mock(hook);
         const authResult = { unitTestAuthResult: 'unit-test-auth-result' };
-        mock.expects('tokenRefreshed').withExactArgs(authResult).once().resolves();
+        mock.expects('tokenRefreshed').withExactArgs().once().resolves();
         const tokenExpiryManager = { scheduleTokenRefresh() {} };
         const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
         tokenExpiryManagerMock.expects('scheduleTokenRefresh').withExactArgs(authResult, sinon.match.func);
@@ -108,7 +108,7 @@ describe('auth0-sso-login.js', () => {
         auth.authResult = { testResult: 'unit-test-result' };
 
         auth.logout();
-        expect(auth.getLatestAuthResult()).to.be.null;
+        expect(auth.getIdToken()).to.be.null;
         expect(logoutHook.calledOnce).to.be.true;
         expect(removeLoginHook.calledOnce).to.be.true;
         windowInteractionMock.verify();
@@ -127,7 +127,7 @@ describe('auth0-sso-login.js', () => {
         auth.authResult = { testResult: 'unit-test-result' };
 
         auth.logout();
-        expect(auth.getLatestAuthResult()).to.be.null;
+        expect(auth.getIdToken()).to.be.null;
         windowInteractionMock.verify();
         tokenExpiryManagerMock.verify();
       });
@@ -147,7 +147,7 @@ describe('auth0-sso-login.js', () => {
         auth.authResult = { testResult: 'unit-test-result' };
 
         auth.removeLogin();
-        expect(auth.getLatestAuthResult()).to.be.null;
+        expect(auth.getIdToken()).to.be.null;
         tokenExpiryManagerMock.verify();
         mock.verify();
       });
@@ -161,7 +161,7 @@ describe('auth0-sso-login.js', () => {
         auth.authResult = { testResult: 'unit-test-result' };
 
         auth.removeLogin();
-        expect(auth.getLatestAuthResult()).to.be.null;
+        expect(auth.getIdToken()).to.be.null;
         tokenExpiryManagerMock.verify();
       });
     });
@@ -178,26 +178,25 @@ describe('auth0-sso-login.js', () => {
         configuration: { enableLockWidget: true },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().rejects('error');
-          objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub)
-            .resolves(testProfile);
-          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
-          objects.auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func)
-            .callsFake((event, cb) => cb(testAuthResult));
-          objects.auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once();
-          objects.auth0LockMock.expects('getUserInfo').withExactArgs(testAuthResult.accessToken, sinon.match.func)
-            .callsFake((accessToken, cb) => cb(null, testProfile));
-          objects.auth0LockFactoryMock.expects('createAuth0Lock').once().returns(objects.auth0Lock);
+          objects.authMock.expects('log');
+          objects.authMock.expects('lockAuth').withExactArgs().once().resolves(testProfile);
         },
       },
-      // add test when auth0 lock fails to login (once we handle that failure)
+      {
+        name: 'follows login procedure with auth0lock with login rejection',
+        configuration: { enableLockWidget: true },
+        setExpectations(objects) {
+          objects.authMock.expects('renewAuth').once().rejects('error');
+          objects.authMock.expects('lockAuth').withExactArgs().once().rejects(catchableError);
+          objects.authMock.expects('log');
+          objects.authMock.expects('removeLogin').withExactArgs().once();
+        },
+      },
       {
         name: 'follows login procedure without auth0lock',
         configuration: { enableLockWidget: false },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
-          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
         },
       },
       {
@@ -205,6 +204,7 @@ describe('auth0-sso-login.js', () => {
         configuration: { enableLockWidget: false },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().rejects(catchableError);
+          objects.authMock.expects('log');
           objects.authMock.expects('removeLogin').once();
         },
       },
@@ -225,10 +225,60 @@ describe('auth0-sso-login.js', () => {
           // eslint-disable-next-line no-param-reassign
           objects.auth.authResult = testAuthResult;
           objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
-          objects.authMock.expects('getDetailedProfile').withExactArgs(testLoginInfo.idToken, testLoginInfo.sub).once().resolves(testProfile);
-          objects.authMock.expects('profileRefreshed').withExactArgs(testProfile).once().resolves();
         },
       },
+    ];
+
+    return testCases.map(testCase =>
+      it(testCase.name, () => {
+        const tokenExpiryManager = { getRemainingMillisToTokenExpiry() {} };
+        const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
+        const auth = new Auth({ hook: { log() {} } });
+        auth.tokenExpiryManager = tokenExpiryManager;
+        const authMock = sandbox.mock(auth);
+
+        testCase.setExpectations(
+          { auth, authMock, tokenExpiryManagerMock },
+        );
+
+        return auth.ensureLoggedIn(testCase.configuration)
+          .then(() => {
+            authMock.verify();
+            tokenExpiryManagerMock.verify();
+          })
+          .catch((e) => {
+            if (e.name !== catchableError) {
+              throw e;
+            }
+          });
+      }));
+  });
+
+  describe('lockAuth()', () => {
+    const catchableError = { name: 'catchable-unit-test-error' };
+    const testLoginInfo = { idToken: 'unit-test-id-token', sub: 'unit-test-sub' };
+    const testProfile = { sub: testLoginInfo.sub };
+    const testAuthResult = { idToken: testLoginInfo.idToken, accessToken: 'unit-test-access-token' };
+    const testCases = [
+      {
+        name: 'follows login procedure with auth0lock',
+        setExpectations(objects) {
+          objects.auth0LockFactoryMock.expects('createAuth0Lock').once().returns(objects.auth0Lock);
+          objects.authMock.expects('refreshProfile').withExactArgs().returns(Promise.resolve(testProfile));
+          objects.auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func).callsFake((event, cb) => cb(testAuthResult));
+          objects.auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once();
+        },
+      },
+      {
+        name: 'follows login procedure auth0lock authorization failure',
+        setExpectations(objects) {
+          objects.auth0LockFactoryMock.expects('createAuth0Lock').once().returns(objects.auth0Lock);
+          objects.authMock.expects('refreshProfile').withExactArgs().returns(Promise.resolve(testProfile));
+          objects.auth0LockMock.expects('on').withExactArgs('authenticated', sinon.match.func).once();
+          objects.auth0LockMock.expects('on').withExactArgs('authorization_error', sinon.match.func).once().callsFake((event, cb) => cb(catchableError));
+          objects.authMock.expects('log');
+        },
+      }
     ];
 
     return testCases.map(testCase =>
@@ -246,7 +296,7 @@ describe('auth0-sso-login.js', () => {
           { auth, authMock, tokenExpiryManagerMock, auth0LockFactoryMock, auth0Lock, auth0LockMock },
         );
 
-        return auth.ensureLoggedIn(testCase.configuration)
+        return auth.lockAuth()
           .then(() => {
             authMock.verify();
             auth0LockFactoryMock.verify();
@@ -254,7 +304,7 @@ describe('auth0-sso-login.js', () => {
             tokenExpiryManagerMock.verify();
           })
           .catch((e) => {
-            if (e.name !== catchableError) {
+            if (e.name !== catchableError.name) {
               throw e;
             }
           });

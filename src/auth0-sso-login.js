@@ -1,4 +1,5 @@
-import auth0 from 'auth0-js';
+import { WebAuth, Management } from 'auth0-js';
+import jwtManager from 'jsonwebtoken';
 import windowInteraction from './window-interaction';
 import auth0LockFactory from './auth0-lock-factory';
 import TokenExpiryManager from './token-expiry-manager';
@@ -27,33 +28,44 @@ export default class auth {
   }
 
   /**
-   * @description gets the detailed profile with a call to the Auth0 Management API
-   * @param idToken
-   * @param sub
+   * @description update the detailed profile with a call to the Auth0 Management API
+   * @param idToken the jwt for a user
    * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
-  getDetailedProfile(idToken, sub) {
+  refreshProfile() {
+    return this.getProfile()
+    .then(profile => {
+      this.profileRefreshed(profile);
+    }, error => {
+      this.log({ title: 'Error while retrieving user information after successful Auth0Lock authentication', error: error });
+    });
+  }
+
+  /**
+   * @description Get the latest available profile
+   * @return {null|Object} profile if the user was already logged in; null otherwise
+   */
+  getProfile() {
+    let idToken = this.authResult.idToken;
+    let jwt = jwtManager.decode(idToken);
+
+    const managementClient = new Management({
+      domain: this.config.domain,
+      token: idToken
+    });
     return new Promise((resolve, reject) => {
-      const auth0Manager = new auth0.Management({
-        domain: this.config.domain,
-        token: idToken,
-      });
-      auth0Manager.getUser(sub, (error, profile) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(profile);
-        }
+      managementClient.getUser(jwt.sub, (error, profile) => {
+        return error ? reject(error) : resolve(profile);
       });
     });
   }
 
   /**
-   * @description the latest authorization result with access token
-   * @return {null|Object} authResult if the user was already logged in; null otherwise
+   * @description Get the latest available idToken
+   * @return {null|Object} idToken if the user was already logged in; null otherwise
    */
-  getLatestAuthResult() {
-    return this.authResult;
+  getIdToken() {
+    return this.authResult && this.authResult.accessToken;
   }
 
   /**
@@ -79,7 +91,7 @@ export default class auth {
       () => this.ensureLoggedIn({ enableLockWidget: true, forceTokenRefresh: true }));
 
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
-      return this.config.hooks.tokenRefreshed(authResult);
+      return this.config.hooks.tokenRefreshed();
     }
     return Promise.resolve();
   }
@@ -134,23 +146,10 @@ export default class auth {
    */
   ensureLoggedIn(configuration = { enableLockWidget: true, forceTokenRefresh: false }) {
     // if there is still a valid token, there is no need to initiate the login process
-    const latestAuthResult = this.getLatestAuthResult();
+    const latestAuthResult = this.getIdToken();
     if (!configuration.forceTokenRefresh && latestAuthResult &&
       this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
       return Promise.resolve();
-    }
-
-    let options = {
-      auth: {
-        params: {
-          responseType: 'id_token token',
-        },
-        redirect: false,
-      },
-      closable: false,
-    };
-    if (this.config.auth0LockOptions) {
-      options = Object.assign(options, this.config.auth0LockOptions);
     }
 
     const authPromise = this.renewAuthSequencePromise
@@ -160,51 +159,9 @@ export default class auth {
         if (!configuration.enableLockWidget) {
           return Promise.reject(e);
         }
+
         this.log({ title: 'Renew authorization did not succeed, falling back to login widget', error: e });
-        return new Promise((resolve, reject) => {
-          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain, options);
-          lock.on('authenticated', (authResult) => {
-            this.renewAuth()
-              .then(() => {
-                lock.getUserInfo(authResult.accessToken, (error, profile) => {
-                  if (error) {
-                    this.log({ title: 'Error while retrieving user information after successful Auth0Lock authentication', error });
-                    resolve({ idToken: authResult.idToken, sub: null });
-                  } else {
-                    resolve({
-                      idToken: authResult.idToken,
-                      sub: profile.sub,
-                    });
-                  }
-                });
-              })
-              .catch((error) => {
-                this.log({ title: 'Error while calling renewAuth after successful Auth0Lock authentication', error });
-                resolve({ idToken: authResult.idToken, sub: null });
-              })
-              .finally(() => {
-                // If login was successful hide the lock widget no matter what
-                lock.hide();
-              });
-          });
-
-          lock.on('authorization_error', (error) => {
-            this.log({ title: 'authorization error', error });
-            reject(error);
-          });
-
-          lock.show();
-        });
-      })
-      .then((loginInfo) => {
-        if (loginInfo.idToken && loginInfo.sub) {
-          return this.getDetailedProfile(loginInfo.idToken, loginInfo.sub)
-            .then(profile => this.profileRefreshed(profile))
-            .catch((err) => {
-              this.log({ title: 'Failed to get detailed profile information', error: err });
-            });
-        }
-        return Promise.resolve();
+        return this.lockAuth();
       })
       .catch((err) => {
         this.removeLogin();
@@ -216,51 +173,104 @@ export default class auth {
     return authPromise;
   }
 
+
+  /**
+   * @description uses the auth0 lock to login
+   * @return {Promise<any>}
+   */
+  lockAuth() {
+    let options = {
+      auth: {
+        sso: true,
+        audience: this.config.audience,
+        responseType: 'id_token token',
+        params: {
+          scope: 'openid profile email'
+        },
+        redirect: false,
+      },
+      closable: false,
+    };
+    if (this.config.auth0LockOptions) {
+      options = Object.assign(options, this.config.auth0LockOptions);
+    }
+
+    const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain, options);
+    return new Promise((resolve, reject) => {
+      lock.on('authenticated', authResult => {
+        resolve(authResult);
+      });
+
+      lock.on('authorization_error', (error) => {
+        this.log({ title: 'Auth0Lock Widget Error', error: error });
+        reject(error);
+      });
+
+      lock.show();
+    })
+    .then(authResult => {
+      this.authResult = authResult;
+      return this.refreshProfile()
+      .catch(() => {})
+      .then(() => {
+        // On successful login hide the lock widget no matter what
+        lock.hide();
+      });
+    });
+  }
+
   /**
    * @description renews the authentication
    * @param {Number} retries current retry attempt number
    * @return {Promise<any>}
    */
   renewAuth(retries = 0) {
-    const webAuth = new auth0.WebAuth({
+    const webAuth = new WebAuth({
       domain: this.config.domain,
       clientID: this.config.clientId,
+      scope: 'openid profile email'
     });
     const renewOptions = {
-      redirectUri: this.config.loginRedirectUri,
-      usePostMessage: true,
+      redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
       audience: this.config.audience,
-      responseType: 'id_token token',
-      postMessageOrigin: window.location.origin ||
-          `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
+      responseType: 'id_token token'
     };
 
     return new Promise((resolve, reject) => {
-      webAuth.renewAuth(renewOptions, (err, authResult) => {
+      webAuth.checkSession(renewOptions, (err, authResult) => {
         if (err) {
-          this.log({ title: 'Failed to update ID token on retry', retry: retries, error: err });
-          reject(err);
-          return;
+          return reject(err);
         }
         if (authResult && authResult.accessToken && authResult.idToken) {
-          this.tokenRefreshed(authResult)
-            .then(() => {
-              resolve({
-                idToken: authResult.idToken,
-                sub: authResult.idTokenPayload.sub,
-              });
-            });
+          this.authResult = authResult;
+          return this.refreshProfile()
+          .then(() => this.tokenRefreshed(authResult))
+          .catch(error => {
+            this.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
+          })
+          .finally(() => {
+            resolve();
+          });
         } else {
-          reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
+          return reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
         }
       });
     })
-      .catch((error) => {
-        if (retries < 4 && error.authResultError === undefined) {
-          return new Promise(resolve => setTimeout(() => resolve(), 1000))
-            .then(() => this.renewAuth(retries + 1));
-        }
+    .catch((error) => {
+      this.log({ title: 'Failed to update ID token on retry', retry: retries, error: error });
+      let fatalErrors = {
+        'consent_required': true,
+        'login_required': true
+      };
+      if (fatalErrors[error.error]) {
         throw error;
-      });
+      }
+
+      if (retries < 4 && error.authResultError === undefined) {
+        return new Promise(resolve => setTimeout(() => resolve(), 1000))
+          .then(() => this.renewAuth(retries + 1));
+      }
+      throw error;
+    });
   }
 }

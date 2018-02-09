@@ -43,13 +43,17 @@ auth.ensureLoggedIn(defaultConfiguration)
 ```
 
 After the login process, the token is retrieved via `tokenRefreshed` hook, described in the
-configuration options bellow. The library also exposes its latest authorization result, which may or
+configuration options bellow. The library also exposes its latest idToken result, which may or
 may not be set (depends on the success/failure of login process). This method can be used as
 a token provider for HTTP clients.
 ```javascript
-let authResult = auth.getLatestAuthResult();
+let idToken = auth.getIdToken();
 ``` 
 
+The profile is exposed as well, as a promise.
+```javascript
+let profilePromise = auth.getProfile();
+```
 Several configuration options and hooks are provided to interact with the library.
 
 ```javascript
@@ -62,10 +66,6 @@ let config = {
 
   // the auth0 audience - see https://auth0.com/docs/api-auth/tutorials/client-credentials
   audience: 'specify the auth0 audience, as agreed for the set of applications with the same audience',
-
-  // the URL where the auth0 hidden login should redirect. this is preferably a small page that will be loaded as an iframe
-  // see example as part of the package, but also copied below
-  loginRedirectUri: `${window.location.origin}/silent-callback.html`,
 
   // the logout URL, which should be accessible by a non-authenticated user
   logoutRedirectUri: `${window.location.origin}/#/logout`,
@@ -86,11 +86,11 @@ let config = {
     profileRefreshed(profile) {
       // once the profile is refreshed, which includes the auth0 sub and other meta data
       // a typical use case is to show the username on screen
+      // or use getProfile()
     },
     // the auth token was retrieved, this is an option to store the token for later use
-    tokenRefreshed(authResult) {
-      // once a new token was retrieved from auth0
-      // a typical use case is to store the token for calling other services
+    tokenRefreshed() {
+      // once a new token was retrieved from auth0, this happens right before expiry.  When using getIdToken(), it may be an unnecessary hook.
     },
     // called before logout or when there's a problem with the current user, for example an invalid token
     // this gives implementors the option to remove the current user's details from the store if saved
