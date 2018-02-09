@@ -160,7 +160,7 @@ export default class auth {
         if (!configuration.enableLockWidget) {
           return Promise.reject(e);
         }
-        this.log({ this: 'Renew authorization did not succeed, falling back to login widget', error: e });
+        this.log({ title: 'Renew authorization did not succeed, falling back to login widget', error: e });
         return new Promise((resolve, reject) => {
           const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
             options);
