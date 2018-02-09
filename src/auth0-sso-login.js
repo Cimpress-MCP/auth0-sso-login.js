@@ -160,7 +160,7 @@ export default class auth {
         if (!configuration.enableLockWidget) {
           return Promise.reject(e);
         }
-        this.log('Renew authorization did not succeed, falling back to login widget', e);
+        this.log({ this: 'Renew authorization did not succeed, falling back to login widget', error: e });
         return new Promise((resolve, reject) => {
           const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
             options);
@@ -170,7 +170,7 @@ export default class auth {
                 lock.getUserInfo(authResult.accessToken, (error, profile) => {
                   lock.hide();
                   if (error) {
-                    this.log('Error while retrieving user information after successful Auth0Lock authentication', error);
+                    this.log({ title: 'Error while retrieving user information after successful Auth0Lock authentication', error });
                     resolve({ idToken: authResult.idToken, sub: null });
                   } else {
                     resolve({
@@ -181,13 +181,13 @@ export default class auth {
                 });
               })
               .catch((error) => {
-                this.log('Error while calling renewAuth after successful Auth0Lock authentication', error);
+                this.log({ title: 'Error while calling renewAuth after successful Auth0Lock authentication', error });
                 resolve({ idToken: authResult.idToken, sub: null });
               });
           });
 
           lock.on('authorization_error', (error) => {
-            this.log(error);
+            this.log({ title: 'authorization error', error });
             reject(error);
           });
 
@@ -199,7 +199,7 @@ export default class auth {
           return this.getDetailedProfile(loginInfo.idToken, loginInfo.sub)
             .then(profile => this.profileRefreshed(profile))
             .catch((err) => {
-              this.log('Failed to get detailed profile information', err);
+              this.log({ title: 'Failed to get detailed profile information', error: err });
             });
         }
         return Promise.resolve();
@@ -236,7 +236,7 @@ export default class auth {
     return new Promise((resolve, reject) => {
       webAuth.renewAuth(renewOptions, (err, authResult) => {
         if (err) {
-          this.log(`Failed to update ID token on retry ${retries}: ${JSON.stringify(err)}`);
+          this.log({ title: 'Failed to update ID token on retry', retry: retries, error: err });
           reject(err);
           return;
         }
