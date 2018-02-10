@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/auth0-sso-login.js)
 [![npm version](https://badge.fury.io/js/auth0-sso-login.svg)](https://www.npmjs.com/package/auth0-sso-login)
 
-The Auth0 SSO Login provides an easy to use library for single-sign on web pages that are leveraging [Auth0](https://auth0.com/) and related [Auth0 Lock](https://auth0.com/lock).
+The Auth0 SSO Login provides an easy to use library for single-sign on web pages that are leveraging [Auth0](https://auth0.com/).
 
 ## Using this library
 
@@ -23,8 +23,9 @@ import Auth from 'auth0-sso-login';
 let config = { /* ... */ };
 let auth = new Auth(config);
 let defaultConfiguration = {
-  enableLockWidget: true,  // if Auth0's SSO fails, use Auth0Lock
+  enabledHostedLogin: true,  // if Auth0's SSO fails, use the hosted login screen
   forceTokenRefresh: false // force refresh even if there is a valid token available
+  redirectUri: window.location.href // specify an override
 };
 // Logs the user in and returns a promise, when succeeded, the user is logged in
 // and a valid JWT was provided (via tokenRefreshed hook).
@@ -37,8 +38,9 @@ auth.ensureLoggedIn(defaultConfiguration)
     // perform application specific steps to handle this situation
     // this should happen only rarely, since the user will either
     // be logged in automatically through Auth0's SSO feature, or
-    // the Auth0Lock will handle the login, and only succeed after
-    // the user successfully logged in.
+    // the Universal Hosted Login page, and only succeed after the
+    // user successfully logged in.  In the case of the redirect,
+    // the redirectUri will be loaded
 });
 ```
 
@@ -70,10 +72,6 @@ let config = {
   // the logout URL, which should be accessible by a non-authenticated user
   logoutRedirectUri: `${window.location.origin}/#/logout`,
 
-  // the Auth0 Lock options that are merged into base options. Worthwhile additions are title or icon
-  // for full options, see https://auth0.com/docs/libraries/lock/v10/customization
-  auth0LockOptions: {},
-
   // hooks to get callback calls into the login/logout workflow
   hooks: {
     // before the redirect to the logoutRedirectUri happens
@@ -103,37 +101,6 @@ let config = {
     }
   }
 };
-```
-
-The page where `config.loginRedirectUrl` is customizable by the package's developer. However, since it loads in an invisible iFrame, it's recommended to keep it small without additional dependencies. The page needs to make a callback to its parent. For example, it could look like this:
-
-```html
-<!DOCTYPE html>
-<html>
-
-<head>
-  <script src="https://cdn.auth0.com/js/auth0/8.9.3/auth0.min.js"></script>
-  <script type="text/javascript">
-    var webAuth = new auth0.WebAuth({
-      domain: 'my-domain',
-      clientID: 'my-client-id',
-      audience: 'my-audience',
-      leeway: 10
-    });
-    var options = {
-      hash: window.location.hash
-    };
-    var result = webAuth.parseHash(options, function (err, data) {
-      parent.postMessage(err || data, window.location.origin);
-    });
-  </script>
-</head>
-
-<body>
-  <!-- see https://auth0.com/docs/libraries/auth0js#using-renewauth-to-acquire-new-tokens -->
-</body>
-
-</html>
 ```
 
 # Contribution
