@@ -23,7 +23,6 @@ export default class auth {
 
   /**
    * @description update the detailed profile with a call to the Auth0 Management API
-   * @param idToken the jwt for a user
    * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
   refreshProfile() {
@@ -40,23 +39,29 @@ export default class auth {
    * @return {null|Object} profile if the user was already logged in; null otherwise
    */
   getProfile() {
-    let idToken = this.authResult.idToken;
-    let jwt = jwtManager.decode(idToken);
+    return Promise.resolve()
+    .then(() => {
+      let idToken = this.getIdToken();
+      let jwt = jwtManager.decode(idToken);
+      if (!jwt || !jwt.sub) {
+        throw new Error('Current idToken is not available.');
+      }
 
-    const managementClient = new Management({
-      domain: this.config.domain,
-      token: idToken
-    });
-    return new Promise((resolve, reject) => {
-      managementClient.getUser(jwt.sub, (error, profile) => {
-        return error ? reject(error) : resolve(profile);
+      const managementClient = new Management({
+        domain: this.config.domain,
+        token: idToken
+      });
+      return new Promise((resolve, reject) => {
+        managementClient.getUser(jwt.sub, (error, profile) => {
+          return error ? reject(error) : resolve(profile);
+        });
       });
     });
   }
 
   /**
    * @description Get the latest available idToken
-   * @return {null|Object} idToken if the user was already logged in; null otherwise
+   * @return {null|String} idToken if the user was already logged in; null otherwise
    */
   getIdToken() {
     let idToken = this.authResult && this.authResult.accessToken;
@@ -71,7 +76,7 @@ export default class auth {
   /**
    * @description calls a hook once the profile got refreshed
    * @param profile user profile retrieved from auth0 manager
-   * @return {*}
+   * @return {Promise<>}
    */
   profileRefreshed(profile) {
     if (this.config.hooks && this.config.hooks.profileRefreshed) {
@@ -83,7 +88,7 @@ export default class auth {
   /**
    * @description Calls a hook once the token got refreshed
    * @param authResult authorization result returned by auth0
-   * @return {*}
+   * @return {Promise<>}
    */
   tokenRefreshed(authResult) {
     this.authResult = authResult;
@@ -98,7 +103,7 @@ export default class auth {
 
   /**
    * Calls a hook once the login should be removed
-   * @return {*}
+   * @return {Promise<>}
    */
   removeLogin() {
     this.tokenExpiryManager.cancelTokenRefresh();
@@ -162,7 +167,7 @@ export default class auth {
           return Promise.reject(e);
         }
 
-        this.logger.log({ title: 'Renew authorization did not succeed, falling back to login widget', error: e });
+        this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', error: e });
         return this.universalAuth(configuration.redirectUri);
       })
       .then(() => {
