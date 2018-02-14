@@ -23,10 +23,11 @@ export default class auth {
 
   /**
    * @description update the detailed profile with a call to the Auth0 Management API
+   * @param auth0AccessToken The client specific audience token to call Auth0 Management
    * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
-  refreshProfile() {
-    return this.getProfile()
+  refreshProfile(auth0AccessToken) {
+    return this.getProfile(auth0AccessToken)
     .then(profile => {
       this.profileRefreshed(profile);
     }, error => {
@@ -36,20 +37,21 @@ export default class auth {
 
   /**
    * @description Get the latest available profile
+   * @param auth0AccessToken The client specific audience token to call Auth0 Management
    * @return {null|Object} profile if the user was already logged in; null otherwise
    */
-  getProfile() {
+  getProfile(auth0AccessToken) {
     return Promise.resolve()
     .then(() => {
       let idToken = this.getIdToken();
       let jwt = jwtManager.decode(idToken);
-      if (!jwt || !jwt.sub) {
-        throw new Error('Current idToken is not available.');
+      if (!jwt || !jwt.sub || !auth0AccessToken) {
+        throw new Error('Current idToken or auth0AccessToken is not available.');
       }
 
       const managementClient = new Management({
         domain: this.config.domain,
-        token: idToken
+        token: auth0AccessToken
       });
       return new Promise((resolve, reject) => {
         managementClient.getUser(jwt.sub, (error, profile) => {
@@ -256,7 +258,7 @@ export default class auth {
         }
         if (authResult && authResult.accessToken && authResult.idToken) {
           this.authResult = authResult;
-          return this.refreshProfile()
+          return this.refreshProfile(authResult.idToken)
           .then(() => this.tokenRefreshed(authResult))
           .catch(error => {
             this.logger.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
