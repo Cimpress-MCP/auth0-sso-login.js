@@ -7,7 +7,19 @@ The Auth0 SSO Login provides an easy to use library for single-sign on web pages
 
 ## Using this library
 
-Install the library.
+### Setup the Auth0 Client configuration.
+Select the following options:
+* Main settings:
+  * Client Type: `Single Page Application`
+  * Allowed Callback URLs: `http://localhost:PORT,https://*.root.domain`
+  * Allowed Web Origins: `http://localhost:PORT,https://*.root.domain`
+  * Allowed Logout URLS: `http://localhost:PORT/#/logout,https://*.root.domain/#/logout`
+  * Allowed Origins (CORS): `http://localhost:PORT,https://*.root.domain`
+* Advanced Settings:
+  * OAuth: `RS256` and OIDC: `on`
+  * Grant Types: `Implicit, Authorization Code, Password / Password Realm`
+
+### Install the library.
 
 ```bash
 npm install auth0-sso-login
