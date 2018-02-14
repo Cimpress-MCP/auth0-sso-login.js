@@ -1,7 +1,9 @@
-import auth0 from 'auth0-js';
+import { WebAuth, Management } from 'auth0-js';
+import jwtManager from 'jsonwebtoken';
 import windowInteraction from './window-interaction';
-import auth0LockFactory from './auth0-lock-factory';
 import TokenExpiryManager from './token-expiry-manager';
+import RedirectHandler from './redirectHandler';
+import Logger from './logger';
 
 // authentication class
 export default class auth {
@@ -12,54 +14,69 @@ export default class auth {
   constructor(config) {
     this.config = config || {};
     this.authResult = null;
+    let logger = new Logger(config);
+    this.logger = logger;
     this.tokenExpiryManager = new TokenExpiryManager();
+    this.redirectHandler = new RedirectHandler(logger);
     this.renewAuthSequencePromise = Promise.resolve();
   }
 
   /**
-   * @description logs the message to the console, or to a provided hook
-   * @param message to log
-   * @return {*|void}
+   * @description update the detailed profile with a call to the Auth0 Management API
+   * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
-  log(message) {
-    const logFunc = (this.config.hooks ? this.config.hooks.log : undefined) || console.log;
-    return logFunc(message);
+  refreshProfile() {
+    return this.getProfile()
+    .then(profile => {
+      this.profileRefreshed(profile);
+    }, error => {
+      this.logger.log({ title: 'Error while retrieving user information after successful authentication', error: error });
+    });
   }
 
   /**
-   * @description gets the detailed profile with a call to the Auth0 Management API
-   * @param idToken
-   * @param sub
-   * @return {Promise<any>} resolved promise with user profile; rejected promise with error
+   * @description Get the latest available profile
+   * @return {null|Object} profile if the user was already logged in; null otherwise
    */
-  getDetailedProfile(idToken, sub) {
-    return new Promise((resolve, reject) => {
-      const auth0Manager = new auth0.Management({
+  getProfile() {
+    return Promise.resolve()
+    .then(() => {
+      let idToken = this.getIdToken();
+      let jwt = jwtManager.decode(idToken);
+      if (!jwt || !jwt.sub) {
+        throw new Error('Current idToken is not available.');
+      }
+
+      const managementClient = new Management({
         domain: this.config.domain,
-        token: idToken,
+        token: idToken
       });
-      auth0Manager.getUser(sub, (error, profile) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(profile);
-        }
+      return new Promise((resolve, reject) => {
+        managementClient.getUser(jwt.sub, (error, profile) => {
+          return error ? reject(error) : resolve(profile);
+        });
       });
     });
   }
 
   /**
-   * @description the latest authorization result with access token
-   * @return {null|Object} authResult if the user was already logged in; null otherwise
+   * @description Get the latest available idToken
+   * @return {null|String} idToken if the user was already logged in; null otherwise
    */
-  getLatestAuthResult() {
-    return this.authResult;
+  getIdToken() {
+    let idToken = this.authResult && this.authResult.accessToken;
+    try {
+      return idToken && jwtManager.decode(idToken).exp > Math.floor(Date.now() / 1000) ? idToken : null;
+    } catch (e) {
+      this.logger.log({ title: 'JWTTokenException', invalidToken: idToken, exception: e });
+      return null;
+    }
   }
 
   /**
    * @description calls a hook once the profile got refreshed
    * @param profile user profile retrieved from auth0 manager
-   * @return {*}
+   * @return {Promise<>}
    */
   profileRefreshed(profile) {
     if (this.config.hooks && this.config.hooks.profileRefreshed) {
@@ -71,22 +88,22 @@ export default class auth {
   /**
    * @description Calls a hook once the token got refreshed
    * @param authResult authorization result returned by auth0
-   * @return {*}
+   * @return {Promise<>}
    */
   tokenRefreshed(authResult) {
     this.authResult = authResult;
     this.tokenExpiryManager.scheduleTokenRefresh(authResult,
-      () => this.ensureLoggedIn({ enableLockWidget: true, forceTokenRefresh: true }));
+      () => this.ensureLoggedIn({ enabledHostedLogin: true, forceTokenRefresh: true }));
 
     if (this.config.hooks && this.config.hooks.tokenRefreshed) {
-      return this.config.hooks.tokenRefreshed(authResult);
+      return this.config.hooks.tokenRefreshed();
     }
     return Promise.resolve();
   }
 
   /**
    * Calls a hook once the login should be removed
-   * @return {*}
+   * @return {Promise<>}
    */
   removeLogin() {
     this.tokenExpiryManager.cancelTokenRefresh();
@@ -122,87 +139,39 @@ export default class auth {
    * @description Ensure user is logged in:
    * 1. Check if there is an existing, valid token.
    * 2. Try logging in using an existing SSO session.
-   * 3. If auth0 lock widget is not explicitly disabled, try logging in using auth0 lock.
+   * 3. If universal login is not explicitly disabled, try logging in via the hosted login
    *
    * @param {Object}     configuration object
-   * @param {Boolean}    configuration.enableLockWidget whether auth0 lock should open when SSO
+   * @param {Boolean}    configuration.enabledHostedLogin whether the universal login should open when SSO
    *                     session is invalid; default = true
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
-  ensureLoggedIn(configuration = { enableLockWidget: true, forceTokenRefresh: false }) {
+  ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false }) {
     // if there is still a valid token, there is no need to initiate the login process
-    const latestAuthResult = this.getLatestAuthResult();
+    const latestAuthResult = this.getIdToken();
     if (!configuration.forceTokenRefresh && latestAuthResult &&
       this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
       return Promise.resolve();
     }
 
-    let options = {
-      auth: {
-        params: {
-          responseType: 'id_token token',
-        },
-        redirect: false,
-      },
-      closable: false,
-    };
-    if (this.config.auth0LockOptions) {
-      options = Object.assign(options, this.config.auth0LockOptions);
-    }
+    this.redirectHandler.attemptRedirect();
 
     const authPromise = this.renewAuthSequencePromise
       .then(() => this.renewAuth())
       .catch((e) => {
-        // if auth0 lock is not enabled, error out
-        if (!configuration.enableLockWidget) {
+        // if universal login is not enabled, error out
+        if (!configuration.enabledHostedLogin) {
           return Promise.reject(e);
         }
-        this.log({ title: 'Renew authorization did not succeed, falling back to login widget', error: e });
-        return new Promise((resolve, reject) => {
-          const lock = auth0LockFactory.createAuth0Lock(this.config.clientId, this.config.domain,
-            options);
-          lock.on('authenticated', (authResult) => {
-            this.renewAuth()
-              .then(() => {
-                lock.getUserInfo(authResult.accessToken, (error, profile) => {
-                  lock.hide();
-                  if (error) {
-                    this.log({ title: 'Error while retrieving user information after successful Auth0Lock authentication', error });
-                    resolve({ idToken: authResult.idToken, sub: null });
-                  } else {
-                    resolve({
-                      idToken: authResult.idToken,
-                      sub: profile.sub,
-                    });
-                  }
-                });
-              })
-              .catch((error) => {
-                this.log({ title: 'Error while calling renewAuth after successful Auth0Lock authentication', error });
-                resolve({ idToken: authResult.idToken, sub: null });
-              });
-          });
 
-          lock.on('authorization_error', (error) => {
-            this.log({ title: 'authorization error', error });
-            reject(error);
-          });
-
-          lock.show();
-        });
+        this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', error: e });
+        return this.universalAuth(configuration.redirectUri);
       })
-      .then((loginInfo) => {
-        if (loginInfo.idToken && loginInfo.sub) {
-          return this.getDetailedProfile(loginInfo.idToken, loginInfo.sub)
-            .then(profile => this.profileRefreshed(profile))
-            .catch((err) => {
-              this.log({ title: 'Failed to get detailed profile information', error: err });
-            });
-        }
-        return Promise.resolve();
+      .then(() => {
+        this.clearOldNonces();
       })
       .catch((err) => {
         this.removeLogin();
@@ -214,51 +183,107 @@ export default class auth {
     return authPromise;
   }
 
+  /** unfortunate, but localStorage can fill up if this isn't called.
+   * should only be called after successful authentication has completed to avoid
+   * removing in process nonces
+   * https://github.com/auth0/auth0.js/issues/402
+   * @description Cleanup old auth0 localstorage
+   */
+  clearOldNonces() {
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if(!key.startsWith('com.auth0.auth')) {
+          return;
+        }
+        localStorage.removeItem(key);
+      });
+    } catch (erorr) {}
+  }
+
+  /**
+   * @description uses the hosted login page to login
+   * @param redirectUri urlt to return to otherwise `window.location.href` will be used.
+   * @return {Promise<any>}
+   */
+  universalAuth(redirectUri) {
+    this.redirectHandler.setRedirect(redirectUri || window.location.href);
+    const webAuth = new WebAuth({
+      domain: this.config.domain,
+      clientID: this.config.clientId,
+      scope: 'openid profile email'
+    });
+
+    const options = {
+      redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
+      audience: this.config.audience,
+      responseType: 'code',
+      responseMode: 'query'
+    };
+
+    return new Promise((resolve, reject) => {
+      this.logger.log({ title: 'Redirecting to login page and waiting for result.' });
+      webAuth.authorize(options, (error, authResult) => {
+        if (error) {
+          this.logger.log({ title: 'Redirect to login page failed.', error: error });
+          return reject(error);
+        }
+        return resolve(authResult);
+      });
+    });
+  }
+
   /**
    * @description renews the authentication
    * @param {Number} retries current retry attempt number
    * @return {Promise<any>}
    */
   renewAuth(retries = 0) {
-    const webAuth = new auth0.WebAuth({
+    const webAuth = new WebAuth({
       domain: this.config.domain,
       clientID: this.config.clientId,
+      scope: 'openid profile email'
     });
     const renewOptions = {
-      redirectUri: this.config.loginRedirectUri,
-      usePostMessage: true,
+      redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
       audience: this.config.audience,
-      responseType: 'id_token token',
-      postMessageOrigin: window.location.origin ||
-          `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
+      responseType: 'id_token token'
     };
 
     return new Promise((resolve, reject) => {
-      webAuth.renewAuth(renewOptions, (err, authResult) => {
+      webAuth.checkSession(renewOptions, (err, authResult) => {
         if (err) {
-          this.log({ title: 'Failed to update ID token on retry', retry: retries, error: err });
-          reject(err);
-          return;
+          return reject(err);
         }
         if (authResult && authResult.accessToken && authResult.idToken) {
-          this.tokenRefreshed(authResult)
-            .then(() => {
-              resolve({
-                idToken: authResult.idToken,
-                sub: authResult.idTokenPayload.sub,
-              });
-            });
+          this.authResult = authResult;
+          return this.refreshProfile()
+          .then(() => this.tokenRefreshed(authResult))
+          .catch(error => {
+            this.logger.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
+          })
+          .finally(() => {
+            resolve();
+          });
         } else {
-          reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
+          return reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
         }
       });
     })
-      .catch((error) => {
-        if (retries < 4 && error.authResultError === undefined) {
-          return new Promise(resolve => setTimeout(() => resolve(), 1000))
-            .then(() => this.renewAuth(retries + 1));
-        }
+    .catch((error) => {
+      this.logger.log({ title: 'Failed to update ID token on retry', retry: retries, error: error });
+      let fatalErrors = {
+        'consent_required': true,
+        'login_required': true
+      };
+      if (fatalErrors[error.error]) {
         throw error;
-      });
+      }
+
+      if (retries < 4 && error.authResultError === undefined) {
+        return new Promise(resolve => setTimeout(() => resolve(), 1000))
+          .then(() => this.renewAuth(retries + 1));
+      }
+      throw error;
+    });
   }
 }
