@@ -12,7 +12,7 @@ Select the following options:
 * Main settings:
   * Client Type: `Single Page Application`
   * Allowed Callback URLs: `http://localhost:PORT,https://*.root.domain`
-  * Allowed Web Origins: `http://localhost:PORT,https://*.root.domain`
+  * Allowed Web Origins: `http://localhost:PORT,https://example.root.domain,https://tst-example.root.domain`
   * Allowed Logout URLS: `http://localhost:PORT/#/logout,https://*.root.domain/#/logout`
   * Allowed Origins (CORS): `http://localhost:PORT,https://*.root.domain`
 * Advanced Settings:
