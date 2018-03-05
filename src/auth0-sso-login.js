@@ -120,8 +120,9 @@ export default class auth {
   /**
    * @description Calls a hook to removeLogin and logout the user, and then interacts with Auth0 to
    * actually log the user out.
+   * @param redirectUriOverride Override redirect location after logout.
    */
-  logout() {
+  logout(redirectUriOverride) {
     this.tokenExpiryManager.cancelTokenRefresh();
     this.authResult = null;
 
@@ -132,7 +133,7 @@ export default class auth {
       if (this.config.hooks && this.config.hooks.logout) {
         this.config.hooks.logout();
       }
-      const redirectUri = encodeURIComponent(this.config.logoutRedirectUri);
+      const redirectUri = encodeURIComponent(redirectUriOverride || this.config.logoutRedirectUri || window.location.href);
       windowInteraction.updateWindow(`https://${this.config.domain}/v2/logout?returnTo=${redirectUri}&client_id=${this.config.clientId}`);
     }
   }
@@ -148,6 +149,7 @@ export default class auth {
    *                     session is invalid; default = true
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
+   * @param {String}     configuration.redirectUri Override redirect location after universal login.
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
