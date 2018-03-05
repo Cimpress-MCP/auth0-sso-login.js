@@ -106,7 +106,7 @@ describe('auth0-sso-login.js', () => {
         auth.tokenExpiryManager = tokenExpiryManager;
         auth.authResult = { testResult: 'unit-test-result' };
 
-        auth.logout();
+        auth.logout('redirectUri');
         expect(auth.getIdToken()).to.be.null;
         expect(logoutHook.calledOnce).to.be.true;
         expect(removeLoginHook.calledOnce).to.be.true;
@@ -125,7 +125,7 @@ describe('auth0-sso-login.js', () => {
         auth.tokenExpiryManager = tokenExpiryManager;
         auth.authResult = { testResult: 'unit-test-result' };
 
-        auth.logout();
+        auth.logout('redirectUri');
         expect(auth.getIdToken()).to.be.null;
         windowInteractionMock.verify();
         tokenExpiryManagerMock.verify();
