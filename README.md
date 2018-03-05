@@ -69,14 +69,14 @@ let config = {
   // the auth0 audience - see https://auth0.com/docs/api-auth/tutorials/client-credentials
   audience: 'specify the auth0 audience, as agreed for the set of applications with the same audience',
 
-  // the logout URL, which should be accessible by a non-authenticated user
+  // the logout URL, which should be accessible by a non-authenticated user, default is `window.location.href`
   logoutRedirectUri: `${window.location.origin}/#/logout`,
 
   // hooks to get callback calls into the login/logout workflow
   hooks: {
-    // before the redirect to the logoutRedirectUri happens
+    // before the redirect to the redirectUri happens (with fallback to logoutRedirectUri and then to window.location.href)
     // if the user information is stored in a backend store, it's best to clean that before the redirect happens
-    logout() {
+    logout(redirectUri) {
       // implement what should happen at logout
       // a typical use case is to remove the auth token from your storage (memory, cookie, local store), or perform other cleanup tasks
     },
@@ -96,8 +96,8 @@ let config = {
       // typical use case it to provide the same method as for logout
     },
     // allows to override log messages; defaults to log to the console
-    log(msg) {
-      // some debug logs from the library; can be overridden to not log to the console
+    log(messageObject) {
+      // some debug message objects from the library; can be overridden to not log to the console
     }
   }
 };
