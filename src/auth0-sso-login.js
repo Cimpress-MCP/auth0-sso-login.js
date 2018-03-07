@@ -259,7 +259,7 @@ export default class auth {
         }
         if (authResult && authResult.accessToken && authResult.idToken) {
           this.authResult = authResult;
-          return this.refreshProfile(authResult.idToken)
+          return this.refreshProfile()
           .then(() => this.tokenRefreshed(authResult))
           .catch(error => {
             this.logger.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
