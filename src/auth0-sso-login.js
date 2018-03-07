@@ -264,7 +264,7 @@ export default class auth {
           .catch(error => {
             this.logger.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
           })
-          .finally(() => {
+          .then(() => {
             resolve();
           });
         } else {
