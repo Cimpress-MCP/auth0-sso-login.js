@@ -23,11 +23,10 @@ export default class auth {
 
   /**
    * @description update the detailed profile with a call to the Auth0 Management API
-   * @param auth0AccessToken The client specific audience token to call Auth0 Management
    * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
-  refreshProfile(auth0AccessToken) {
-    return this.getProfile(auth0AccessToken)
+  refreshProfile() {
+    return this.getProfile()
     .then(profile => {
       this.profileRefreshed(profile);
     }, error => {
@@ -37,16 +36,16 @@ export default class auth {
 
   /**
    * @description Get the latest available profile
-   * @param auth0AccessToken The client specific audience token to call Auth0 Management
    * @return {null|Object} profile if the user was already logged in; null otherwise
    */
-  getProfile(auth0AccessToken) {
+  getProfile() {
     return Promise.resolve()
     .then(() => {
       let idToken = this.getIdToken();
       let jwt = jwtManager.decode(idToken);
+      let auth0AccessToken = this.authResult && this.authResult.idToken;
       if (!jwt || !jwt.sub || !auth0AccessToken) {
-        throw new Error('Current idToken or auth0AccessToken is not available.');
+        throw { title: 'Current idToken or auth0AccessToken is not available.' };
       }
 
       const managementClient = new Management({
@@ -55,7 +54,7 @@ export default class auth {
       });
       return new Promise((resolve, reject) => {
         managementClient.getUser(jwt.sub, (error, profile) => {
-          return error ? reject(error) : resolve(profile);
+          return error ? reject({ title: 'Failed to get profile', error: error }) : resolve(profile);
         });
       });
     });
@@ -70,7 +69,7 @@ export default class auth {
     try {
       return idToken && jwtManager.decode(idToken).exp > Math.floor(Date.now() / 1000) ? idToken : null;
     } catch (e) {
-      this.logger.log({ title: 'JWTTokenException', invalidToken: idToken, exception: e });
+      this.logger.log({ title: 'JWTTokenException', invalidToken: idToken, error: e });
       return null;
     }
   }
