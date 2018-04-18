@@ -5,6 +5,7 @@ import sinonChai from 'sinon-chai';
 import chai from 'chai';
 import Auth from '../src/auth0-sso-login';
 import windowInteraction from '../src/window-interaction';
+import 'url-polyfill';
 
 const expect = chai.expect;
 chai.use(sinonChai);

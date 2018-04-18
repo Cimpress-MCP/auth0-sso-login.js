@@ -160,6 +160,10 @@ export default class auth {
       return Promise.resolve();
     }
 
+    let parsedUrl = new URL(window.location.href);
+    if (parsedUrl.searchParams.get('error') === 'access_denied' && parsedUrl.searchParams.get('error_description').match(/verify.*email/)) {
+      throw { title: 'Please verify your email address before logging in.' };
+    }
     this.redirectHandler.attemptRedirect();
 
     const authPromise = this.renewAuthSequencePromise
