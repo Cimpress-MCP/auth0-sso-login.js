@@ -242,6 +242,12 @@ describe('auth0-sso-login.js', () => {
         redirectHandlerMock.expects('attemptRedirect').once();
         auth.redirectHandler = redirectHandler;
 
+        const errorHandler = { tryCaptureError() {}, getCapturedError() {} };
+        const errorHandlerMock = sandbox.mock(errorHandler);
+        errorHandlerMock.expects('tryCaptureError').once();
+        errorHandlerMock.expects('getCapturedError').once();
+        auth.errorHandler = errorHandler;
+
         const logger = { log() {} };
         auth.logger = logger;
         let loggerMock = sandbox.mock(logger);
