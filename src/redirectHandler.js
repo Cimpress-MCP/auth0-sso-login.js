@@ -1,4 +1,4 @@
-const redirectUriKey = 'redirectUri';
+const redirectUriKey = 'cimpress.io.auth0-sso-login.redirectUri';
 
 export default class RedirectHandler {
   /**
@@ -32,6 +32,9 @@ export default class RedirectHandler {
       let redirectUri = localStorage.getItem(redirectUriKey);
       if (redirectUri) {
         localStorage.removeItem(redirectUriKey);
+        let parsedUrl = new URL(window.location.href);
+        parsedUrl.searchParams.delete('state');
+        history.replaceState(null, null, parsedUrl.toString());
         this.logger.log({ title: 'Auto redirect back to original location', url: redirectUri });
         window.location.replace(redirectUri);
       }
