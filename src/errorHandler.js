@@ -17,10 +17,14 @@ export default class ErrorHandler {
     try {
       let parsedUrl = new URL(window.location.href);
       let error = parsedUrl.searchParams.get('error');
+      let errorCode = error;
       let errorDescription = parsedUrl.searchParams.get('error_description');
       if (error) {
-        this.logger.log({ title: 'Login error found', level: 'WARN', url: window.location.href, error: error, description: errorDescription });
-        localStorage.setItem(parsedErrorKey, JSON.stringify({ title: 'Auth0 Login Error', details: errorDescription, errorCode: error }));
+        if (error === 'access_denied' && errorDescription === 'Please verify your email before logging in.') {
+          errorCode = 'UnverifiedEmail';
+        }
+        this.logger.log({ title: 'Login error found', level: 'WARN', url: window.location.href, error: error, errorCode: errorCode, description: errorDescription });
+        localStorage.setItem(parsedErrorKey, JSON.stringify({ title: 'Auth0 Login Error', details: errorDescription, errorCode: errorCode }));
       }
     } catch (error) {
       this.logger.log({ title: 'Failed to save Auth0.', error: error });
