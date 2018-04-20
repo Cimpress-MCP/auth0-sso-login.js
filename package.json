@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "babel src -d lib",
-    "test": "mocha --compilers js:babel-core/register test/**/*.test.js"
+    "test": "mocha --compilers js:babel-core/register test/**/*.test.js --require test/.setup.js"
   },
   "repository": {
     "type": "git",
@@ -39,8 +39,10 @@
     "eslint": "4.5.0",
     "eslint-config-cimpress-atsquad": "1.0.11",
     "eslint-plugin-import": "2.7.0",
+    "jsdom": "^11.8.0",
     "mocha": "^3.5.0",
     "sinon": "^3.2.1",
-    "sinon-chai": "^2.14.0"
+    "sinon-chai": "^2.14.0",
+    "url-polyfill": "^1.0.13"
   }
 }

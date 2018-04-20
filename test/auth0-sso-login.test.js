@@ -5,6 +5,7 @@ import sinonChai from 'sinon-chai';
 import chai from 'chai';
 import Auth from '../src/auth0-sso-login';
 import windowInteraction from '../src/window-interaction';
+import 'url-polyfill';
 
 const expect = chai.expect;
 chai.use(sinonChai);
@@ -240,6 +241,12 @@ describe('auth0-sso-login.js', () => {
         const redirectHandlerMock = sandbox.mock(redirectHandler) ;
         redirectHandlerMock.expects('attemptRedirect').once();
         auth.redirectHandler = redirectHandler;
+
+        const errorHandler = { tryCaptureError() {}, getCapturedError() {} };
+        const errorHandlerMock = sandbox.mock(errorHandler);
+        errorHandlerMock.expects('tryCaptureError').once();
+        errorHandlerMock.expects('getCapturedError').once();
+        auth.errorHandler = errorHandler;
 
         const logger = { log() {} };
         auth.logger = logger;

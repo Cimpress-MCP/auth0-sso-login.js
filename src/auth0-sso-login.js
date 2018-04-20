@@ -3,6 +3,7 @@ import jwtManager from 'jsonwebtoken';
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
 import RedirectHandler from './redirectHandler';
+import ErrorHandler from './errorHandler';
 import Logger from './logger';
 
 // authentication class
@@ -18,6 +19,7 @@ export default class auth {
     this.logger = logger;
     this.tokenExpiryManager = new TokenExpiryManager();
     this.redirectHandler = new RedirectHandler(logger);
+    this.errorHandler = new ErrorHandler(logger);
     this.renewAuthSequencePromise = Promise.resolve();
   }
 
@@ -30,7 +32,7 @@ export default class auth {
     .then(profile => {
       this.profileRefreshed(profile);
     }, error => {
-      this.logger.log({ title: 'Error while retrieving user information after successful authentication', error: error });
+      this.logger.log({ title: 'Error while retrieving user information after successful authentication', errorCode: 'ProfileError', error: error });
     });
   }
 
@@ -69,7 +71,7 @@ export default class auth {
     try {
       return idToken && jwtManager.decode(idToken).exp > Math.floor(Date.now() / 1000) ? idToken : null;
     } catch (e) {
-      this.logger.log({ title: 'JWTTokenException', invalidToken: idToken, error: e });
+      this.logger.log({ title: 'JWTTokenException', errorCode: 'JWTTokenException', invalidToken: idToken, error: e });
       return null;
     }
   }
@@ -160,7 +162,17 @@ export default class auth {
       return Promise.resolve();
     }
 
-    this.redirectHandler.attemptRedirect();
+    this.errorHandler.tryCaptureError();
+
+    let completedRedirect = this.redirectHandler.attemptRedirect();
+    if (completedRedirect) {
+      return Promise.resolve();
+    }
+
+    let foundError = this.errorHandler.getCapturedError();
+    if (foundError) {
+      return Promise.reject(foundError);
+    }
 
     const authPromise = this.renewAuthSequencePromise
       .then(() => this.renewAuth())
@@ -170,7 +182,7 @@ export default class auth {
           return Promise.reject(e);
         }
 
-        this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', error: e });
+        this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', errorCode: 'RenewAuthorizationFailure', error: e });
         return this.universalAuth(configuration.redirectUri);
       })
       .then(() => {
@@ -227,7 +239,7 @@ export default class auth {
       this.logger.log({ title: 'Redirecting to login page and waiting for result.' });
       webAuth.authorize(options, (error, authResult) => {
         if (error) {
-          this.logger.log({ title: 'Redirect to login page failed.', error: error });
+          this.logger.log({ title: 'Redirect to login page failed.', errorCode: 'RedirectFailed', error: error });
           return reject(error);
         }
         return resolve(authResult);
@@ -262,7 +274,7 @@ export default class auth {
           return this.refreshProfile()
           .then(() => this.tokenRefreshed(authResult))
           .catch(error => {
-            this.logger.log({ title: 'Failed to fire "Token Refreshed" event', error: error });
+            this.logger.log({ title: 'Failed to fire "Token Refreshed" event', errorCode: 'TokenRefreshFailed', error: error });
           })
           .then(() => {
             resolve();
@@ -273,7 +285,7 @@ export default class auth {
       });
     })
     .catch((error) => {
-      this.logger.log({ title: 'Failed to update ID token on retry', retry: retries, error: error });
+      this.logger.log({ title: 'Failed to update ID token on retry', errorCode: 'IdTokenUpdateFailed', retry: retries, error: error });
       let fatalErrors = {
         'consent_required': true,
         'login_required': true
