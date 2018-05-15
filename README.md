@@ -102,8 +102,11 @@ let config = {
   }
 };
 ```
+## Auth0 Login Flow
 
-# Contribution
+![Sequence Diagram](https://www.websequencediagrams.com/cgi-bin/cdraw?lz=dGl0bGUgQXV0aGVudGljYXRpb24gU2VxdWVuY2UgKG5vIHRva2VuIHNhdmVkKQoKQXBwIE1haW4gU2NyZWVuIC0-IFJlcXVlc3RlZAANBzogVXNlciBOYXZpZwBLBQoAEhAgLT4AbgUwOiBSZW5ld0F1dGgKAAwFADoWABUGbG9naW5fcmVxdWlyZWQAOxouY29tOiBTdG9yZSBjdXJyZW50IGxvAIFUByYmAIEYBkxvZ2luAG4GLmNvbQCBDQUAgU0OOiA_aWRfAIF5BT1KV1QAgVQmbGlicmFyeSBjYXB0dXJlcwCCNwdhbmQgcmVkaXJlY3RzCgpub3RlIHJpZ2h0IG9mAGYSVW5zdWNjZXNzZnVsIEZsb3cAgQiBb2Vycm9yPVNvbWVFcnJvcgCCQzcAQQUAgmsPAIJ0BWxlZgCCcwUAhSYSQwCDMAYgdGhlADgHZnJvbQAKBQCDUQhhbmQgbG9nIGl0AIRhIElmIHRoZXJlIGlzIGFuAIEEC2l0IGlzIGNhdWdodABWBm9naW4gcHJvY2VzcyB3aWxsIHJlcGVhdC4KCg&s=magazine)
+
+## Contribution
 
 We value your input as part of direct feedback to us, by filing issues, or preferably by directly contributing improvements:
 
