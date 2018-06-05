@@ -30,10 +30,12 @@ export default class RedirectHandler {
   attemptRedirect() {
     try {
       let redirectUri = localStorage.getItem(redirectUriKey);
-      if (redirectUri) {
-        localStorage.removeItem(redirectUriKey);
-        let parsedUrl = new URL(window.location.href);
+      localStorage.removeItem(redirectUriKey);
+      let parsedUrl = new URL(window.location.href);
+      let isFromAuth0 = parsedUrl.searchParams.get('state') || parsedUrl.searchParams.get('code');
+      if (redirectUri && isFromAuth0) {
         parsedUrl.searchParams.delete('state');
+        parsedUrl.searchParams.delete('code');
         history.replaceState(null, null, parsedUrl.toString());
         this.logger.log({ title: 'Auto redirect back to original location', url: redirectUri });
         window.location.replace(redirectUri);
