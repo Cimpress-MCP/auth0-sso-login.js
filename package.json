@@ -28,7 +28,8 @@
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
     "auth0-js": "^9.7.3",
-    "jsonwebtoken": "^8.1.1"
+    "jsonwebtoken": "^8.1.1",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
