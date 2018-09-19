@@ -155,7 +155,7 @@ export default class auth {
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
    * @param {String}     configuration.redirectUri Override redirect location after universal login.
-   * @param {String}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created. Token validation will still be required.
+   * @param {Boolean}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created. Token validation will still be required.
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */

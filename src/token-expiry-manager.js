@@ -5,6 +5,7 @@ export default class tokenExpiryManager {
   constructor() {
     this.tokenExpiresAt = null;
     this.tokenRefreshHandle = null;
+    this.sessionId = null;
   }
 
   getRemainingMillisToTokenExpiry() {
@@ -39,6 +40,6 @@ export default class tokenExpiryManager {
   }
 
   isSameAuthorizationSession() {
-    return this.sessionId;
+    return !!this.sessionId;
   }
 }
