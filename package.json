@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
-    "auth0-js": "^9.2.1",
+    "auth0-js": "^9.7.3",
     "jsonwebtoken": "^8.1.1"
   },
   "devDependencies": {
