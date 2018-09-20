@@ -39,7 +39,7 @@ export default class tokenExpiryManager {
     this.sessionId = uuid.v4();
   }
 
-  isSameAuthorizationSession() {
+  authorizationSessionExists() {
     return !!this.sessionId;
   }
 }

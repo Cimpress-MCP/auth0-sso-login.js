@@ -168,7 +168,7 @@ export default class auth {
     }
 
     // When a valid session is required and a token is requested and there is no session, fail silently. This should be silent because it is the expectation that a valid token will be checked subsequently.
-    if (configuration.requireValidSession && !this.tokenExpiryManager.isSameAuthorizationSession()) {
+    if (configuration.requireValidSession && !this.tokenExpiryManager.authorizationSessionExists()) {
       return Promise.resolve();
     }
 
