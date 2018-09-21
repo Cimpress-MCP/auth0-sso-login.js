@@ -1,9 +1,11 @@
+import uuid from 'uuid';
 import windowInteraction from './window-interaction';
 
 export default class tokenExpiryManager {
   constructor() {
     this.tokenExpiresAt = null;
     this.tokenRefreshHandle = null;
+    this.sessionId = null;
   }
 
   getRemainingMillisToTokenExpiry() {
@@ -24,11 +26,20 @@ export default class tokenExpiryManager {
   }
 
   cancelTokenRefresh() {
+    this.sessionId = null;
     this.tokenExpiresAt = null;
 
     if (this.tokenRefreshHandle) {
       windowInteraction.clearTimeout(this.tokenRefreshHandle);
       this.tokenRefreshHandle = null;
     }
+  }
+
+  createSession() {
+    this.sessionId = uuid.v4();
+  }
+
+  authorizationSessionExists() {
+    return !!this.sessionId;
   }
 }
