@@ -69,7 +69,11 @@ export default class auth {
   getIdToken() {
     let idToken = this.authResult && this.authResult.accessToken;
     try {
-      return idToken && jwtManager.decode(idToken).exp > Math.floor(Date.now() / 1000) ? idToken : null;
+      let validToken = idToken && jwtManager.decode(idToken).exp > Math.floor(Date.now() / 1000) ? idToken : null;
+      if (validToken) {
+        this.tokenExpiryManager.createSession();
+      }
+      return validToken;
     } catch (e) {
       this.logger.log({ title: 'JWTTokenException', errorCode: 'JWTTokenException', invalidToken: idToken, error: e });
       return null;
@@ -151,14 +155,20 @@ export default class auth {
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
    * @param {String}     configuration.redirectUri Override redirect location after universal login.
+   * @param {Boolean}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created. Token validation will still be required.
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
-  ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false }) {
+  ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false, requireValidSession: false }) {
     // if there is still a valid token, there is no need to initiate the login process
     const latestAuthResult = this.getIdToken();
     if (!configuration.forceTokenRefresh && latestAuthResult &&
       this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
+      return Promise.resolve();
+    }
+
+    // When a valid session is required and a token is requested and there is no session, fail silently. This should be silent because it is the expectation that a valid token will be checked subsequently.
+    if (configuration.requireValidSession && !this.tokenExpiryManager.authorizationSessionExists()) {
       return Promise.resolve();
     }
 
