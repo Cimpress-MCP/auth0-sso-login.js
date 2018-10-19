@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "babel src -d lib",
-    "test": "mocha --compilers js:babel-core/register test/**/*.test.js --require test/.setup.js"
+    "test": "mocha test/**/*.test.js --require test/.setup.js --require @babel/polyfill --require @babel/register"
   },
   "repository": {
     "type": "git",
@@ -32,8 +32,13 @@
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset-env": "^1.6.0",
+    "@babel/cli": "7.0.0",
+    "@babel/core": "^7.1.2",
+    "@babel/polyfill": "7.0.0",
+    "@babel/preset-env": "^7.1.0",
+    "@babel/register": "7.0.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-register": "^6.26.0",
     "chai": "^4.1.2",
     "ci-build-tools": "1.0.9",
     "commander": "2.11.0",

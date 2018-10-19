@@ -1,10 +1,10 @@
-import { WebAuth, Management } from 'auth0-js';
 import jwtManager from 'jsonwebtoken';
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
 import RedirectHandler from './redirectHandler';
 import ErrorHandler from './errorHandler';
 import Logger from './logger';
+import Auth0ClientProvider from './auth0ClientProvider';
 
 // authentication class
 export default class auth {
@@ -21,11 +21,7 @@ export default class auth {
     this.redirectHandler = new RedirectHandler(logger);
     this.errorHandler = new ErrorHandler(logger);
     this.renewAuthSequencePromise = Promise.resolve();
-    this.webAuth = new WebAuth({
-      domain: this.config.domain,
-      clientID: this.config.clientId,
-      scope: 'openid profile email'
-    });
+    this.auth0ClientProvider = new Auth0ClientProvider(config);
   }
 
   /**
@@ -55,12 +51,8 @@ export default class auth {
         throw { title: 'Current idToken or auth0AccessToken is not available.' };
       }
 
-      const managementClient = new Management({
-        domain: this.config.domain,
-        token: auth0AccessToken
-      });
       return new Promise((resolve, reject) => {
-        managementClient.getUser(jwt.sub, (error, profile) => {
+        this.auth0ClientProvider.getManagementClient(auth0AccessToken).getUser(jwt.sub, (error, profile) => {
           return error ? reject({ title: 'Failed to get profile', error: error }) : resolve(profile);
         });
       });
@@ -179,7 +171,7 @@ export default class auth {
 
     this.errorHandler.tryCaptureError();
 
-    let redirectFromAuth0Result = await new Promise((resolve, reject) => this.webAuth.parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
+    let redirectFromAuth0Result = await new Promise((resolve, reject) => this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
     let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken
     if (containsToken) {
       this.authResult = redirectFromAuth0Result;
@@ -255,7 +247,7 @@ export default class auth {
 
     return new Promise((resolve, reject) => {
       this.logger.log({ title: 'Redirecting to login page and waiting for result.' });
-      this.webAuth.authorize(options, (error, authResult) => {
+      this.auth0ClientProvider.getClient().authorize(options, (error, authResult) => {
         if (error) {
           this.logger.log({ title: 'Redirect to login page failed.', errorCode: 'RedirectFailed', error: error });
           return reject(error);
@@ -278,7 +270,7 @@ export default class auth {
     };
 
     return new Promise((resolve, reject) => {
-      this.webAuth.checkSession(renewOptions, (err, authResult) => {
+      this.auth0ClientProvider.getClient().checkSession(renewOptions, (err, authResult) => {
         if (err) {
           return reject(err);
         }

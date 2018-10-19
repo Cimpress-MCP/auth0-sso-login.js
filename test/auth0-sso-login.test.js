@@ -7,6 +7,8 @@ import Auth from '../src/auth0-sso-login';
 import windowInteraction from '../src/window-interaction';
 import 'url-polyfill';
 
+import Auth0ClientProvider from '../src/auth0ClientProvider';
+
 const expect = chai.expect;
 chai.use(sinonChai);
 
@@ -235,6 +237,13 @@ describe('auth0-sso-login.js', () => {
         const tokenExpiryManagerMock = sandbox.mock(tokenExpiryManager);
         const auth = new Auth({ hook: { log() {} } });
         auth.tokenExpiryManager = tokenExpiryManager;
+
+        const auth0Client = { parseHash() {} };
+        const auth0ClientMock = sandbox.mock(auth0Client);
+        auth0ClientMock.expects('parseHash').once().callsFake((_, r) => r(null, {}));
+        const auth0ClientProviderMock = sandbox.mock(Auth0ClientProvider.prototype);
+        auth0ClientProviderMock.expects('getClient').once().returns(auth0Client);
+        auth.auth0ClientProvider = new Auth0ClientProvider();
         const authMock = sandbox.mock(auth);
 
         const redirectHandler = { attemptRedirect() {} };
