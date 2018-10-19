@@ -21,6 +21,11 @@ export default class auth {
     this.redirectHandler = new RedirectHandler(logger);
     this.errorHandler = new ErrorHandler(logger);
     this.renewAuthSequencePromise = Promise.resolve();
+    this.webAuth = new WebAuth({
+      domain: this.config.domain,
+      clientID: this.config.clientId,
+      scope: 'openid profile email'
+    });
   }
 
   /**
@@ -159,7 +164,7 @@ export default class auth {
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
-  ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false, requireValidSession: false }) {
+  async ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false, requireValidSession: false }) {
     // if there is still a valid token, there is no need to initiate the login process
     const latestAuthResult = this.getIdToken();
     if (!configuration.forceTokenRefresh && latestAuthResult &&
@@ -174,9 +179,19 @@ export default class auth {
 
     this.errorHandler.tryCaptureError();
 
-    let completedRedirect = this.redirectHandler.attemptRedirect();
-    if (completedRedirect) {
-      return Promise.resolve();
+    let redirectFromAuth0Result = await new Promise((resolve, reject) => this.webAuth.parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
+    let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken
+    if (containsToken) {
+      this.authResult = redirectFromAuth0Result;
+      try {
+        await this.refreshProfile()
+        await this.tokenRefreshed(this.authResult);
+      } catch (error) {
+        this.logger.log({ title: 'Failed to fire "Token Refreshed" event', errorCode: 'TokenRefreshFailed', error: error });
+      }
+
+      let redirectUri = this.redirectHandler.attemptRedirect();
+      return { redirectUri };
     }
 
     let foundError = this.errorHandler.getCapturedError();
@@ -232,22 +247,15 @@ export default class auth {
    */
   universalAuth(redirectUri) {
     this.redirectHandler.setRedirect(redirectUri || window.location.href);
-    const webAuth = new WebAuth({
-      domain: this.config.domain,
-      clientID: this.config.clientId,
-      scope: 'openid profile email'
-    });
-
     const options = {
       redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
       audience: this.config.audience,
-      responseType: 'code',
-      responseMode: 'query'
+      responseType: 'id_token token'
     };
 
     return new Promise((resolve, reject) => {
       this.logger.log({ title: 'Redirecting to login page and waiting for result.' });
-      webAuth.authorize(options, (error, authResult) => {
+      this.webAuth.authorize(options, (error, authResult) => {
         if (error) {
           this.logger.log({ title: 'Redirect to login page failed.', errorCode: 'RedirectFailed', error: error });
           return reject(error);
@@ -263,11 +271,6 @@ export default class auth {
    * @return {Promise<any>}
    */
   renewAuth(retries = 0) {
-    const webAuth = new WebAuth({
-      domain: this.config.domain,
-      clientID: this.config.clientId,
-      scope: 'openid profile email'
-    });
     const renewOptions = {
       redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
       audience: this.config.audience,
@@ -275,7 +278,7 @@ export default class auth {
     };
 
     return new Promise((resolve, reject) => {
-      webAuth.checkSession(renewOptions, (err, authResult) => {
+      this.webAuth.checkSession(renewOptions, (err, authResult) => {
         if (err) {
           return reject(err);
         }
