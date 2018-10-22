@@ -32,7 +32,6 @@ export default class RedirectHandler {
       let redirectUri = localStorage.getItem(redirectUriKey);
       localStorage.removeItem(redirectUriKey);
       if (redirectUri) {
-        this.logger.log({ title: 'Auto redirect back to original location', url: redirectUri });
         history.replaceState(null, null, redirectUri);
         return redirectUri;
       }
