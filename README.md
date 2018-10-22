@@ -43,9 +43,14 @@ let defaultConfiguration = {
 // and a valid JWT was provided (via tokenRefreshed hook).
 // Schedules automatic background renewal of JWT based on its expiry time.
 // (it will be refresh in the 2/3 of the current token lifetime)
-auth.ensureLoggedIn(defaultConfiguration)
-.then(() => console.log('user is logged in'))
-.catch(error => {
+try {
+  let result = await auth.ensureLoggedIn(defaultConfiguration)
+  console.log('user is logged in, if a previous redirect was saved direct the user to the redirect location');
+  // The redirect saved in the configuration passed in will not be correct, as it was generated in "this" session instead of the session which created the correct redirect.
+  if (result.redirectUri) {
+    window.location.replace(result.redirectUri);
+  }
+} catch (error) {
     console.error('an unexpected error occurred while logging in');
     // perform application specific steps to handle this situation
     // this should happen only rarely, since the user will either

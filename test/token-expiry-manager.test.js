@@ -50,7 +50,7 @@ describe('token-expiry-manager.js', () => {
       dateMock.expects('now').returns(dateNow);
       const windowInteractionMock = sandbox.mock(windowInteraction);
       windowInteractionMock.expects('setTimeout')
-        .withExactArgs(expectedRefreshFunction, expectedRefreshDelay).returns(expectedRefreshHandle);
+      .withExactArgs(expectedRefreshFunction, expectedRefreshDelay).returns(expectedRefreshHandle);
 
       const tokenExpiryManager = new TokenExpiryManager();
       tokenExpiryManager.scheduleTokenRefresh({ expiresIn: expiresIn / 1000 }, expectedRefreshFunction);
@@ -72,7 +72,7 @@ describe('token-expiry-manager.js', () => {
       const windowInteractionMock = sandbox.mock(windowInteraction);
       windowInteractionMock.expects('clearTimeout').withExactArgs(oldRefreshHandle);
       windowInteractionMock.expects('setTimeout')
-        .withExactArgs(sinon.match.func, sinon.match.number).returns(newRefreshHandle);
+      .withExactArgs(sinon.match.func, sinon.match.number).returns(newRefreshHandle);
 
       const tokenExpiryManager = new TokenExpiryManager();
       tokenExpiryManager.tokenRefreshHandle = oldRefreshHandle;
