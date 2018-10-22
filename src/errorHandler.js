@@ -46,6 +46,7 @@ export default class ErrorHandler {
       return JSON.parse(parsedErrorString);
     } catch (error) {
       this.logger.log({ title: 'Failed to get return parsed errored', level: 'WARN', error: error });
+      return null;
     }
   }
 }

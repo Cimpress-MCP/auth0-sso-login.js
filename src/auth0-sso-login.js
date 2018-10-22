@@ -48,7 +48,7 @@ export default class auth {
       let jwt = jwtManager.decode(idToken);
       let auth0AccessToken = this.authResult && this.authResult.idToken;
       if (!jwt || !jwt.sub || !auth0AccessToken) {
-        throw { title: 'Current idToken or auth0AccessToken is not available.' };
+        throw Error('Current idToken or auth0AccessToken is not available.');
       }
 
       return new Promise((resolve, reject) => {
@@ -152,19 +152,20 @@ export default class auth {
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
    * @param {String}     configuration.redirectUri Override redirect location after universal login.
-   * @param {Boolean}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created. Token validation will still be required.
+   * @param {Boolean}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created.
+   *                     Token validation will still be required.
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
    */
   async ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false, requireValidSession: false }) {
     // if there is still a valid token, there is no need to initiate the login process
     const latestAuthResult = this.getIdToken();
-    if (!configuration.forceTokenRefresh && latestAuthResult &&
-      this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
+    if (!configuration.forceTokenRefresh && latestAuthResult && this.tokenExpiryManager.getRemainingMillisToTokenExpiry() > 0) {
       return Promise.resolve();
     }
 
-    // When a valid session is required and a token is requested and there is no session, fail silently. This should be silent because it is the expectation that a valid token will be checked subsequently.
+    // When a valid session is required and a token is requested and there is no session, fail silently.
+    // This should be silent because it is the expectation that a valid token will be checked subsequently.
     if (configuration.requireValidSession && !this.tokenExpiryManager.authorizationSessionExists()) {
       return Promise.resolve();
     }
@@ -172,11 +173,11 @@ export default class auth {
     this.errorHandler.tryCaptureError();
 
     let redirectFromAuth0Result = await new Promise((resolve, reject) => this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
-    let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken
+    let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken;
     if (containsToken) {
       this.authResult = redirectFromAuth0Result;
       try {
-        await this.refreshProfile()
+        await this.refreshProfile();
         await this.tokenRefreshed(this.authResult);
       } catch (error) {
         this.logger.log({ title: 'Failed to fire "Token Refreshed" event', errorCode: 'TokenRefreshFailed', error: error });
@@ -192,23 +193,23 @@ export default class auth {
     }
 
     const authPromise = this.renewAuthSequencePromise
-      .then(() => this.renewAuth())
-      .catch((e) => {
-        // if universal login is not enabled, error out
-        if (!configuration.enabledHostedLogin) {
-          return Promise.reject(e);
-        }
+    .then(() => this.renewAuth())
+    .catch(e => {
+      // if universal login is not enabled, error out
+      if (!configuration.enabledHostedLogin) {
+        return Promise.reject(e);
+      }
 
-        this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', errorCode: 'RenewAuthorizationFailure', error: e });
-        return this.universalAuth(configuration.redirectUri);
-      })
-      .then(() => {
-        this.clearOldNonces();
-      })
-      .catch((err) => {
-        this.removeLogin();
-        throw err;
-      });
+      this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', errorCode: 'RenewAuthorizationFailure', error: e });
+      return this.universalAuth(configuration.redirectUri);
+    })
+    .then(() => {
+      this.clearOldNonces();
+    })
+    .catch(err => {
+      this.removeLogin();
+      throw err;
+    });
 
     this.renewAuthSequencePromise = authPromise.catch(() => { /* ignore since renewAuthSequcne may never be a rejected promise to have successful continuations */ });
 
@@ -224,12 +225,12 @@ export default class auth {
   clearOldNonces() {
     try {
       Object.keys(localStorage).forEach(key => {
-        if(!key.startsWith('com.auth0.auth')) {
+        if (!key.startsWith('com.auth0.auth')) {
           return;
         }
         localStorage.removeItem(key);
       });
-    } catch (erorr) {}
+    } catch (erorr) { /* */ }
   }
 
   /**
@@ -284,16 +285,15 @@ export default class auth {
           .then(() => {
             resolve();
           });
-        } else {
-          return reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
         }
+        return reject({ error: 'no_token_available', errorDescription: 'Failed to get valid token.', authResultError: authResult ? authResult.error : undefined });
       });
     })
-    .catch((error) => {
+    .catch(error => {
       this.logger.log({ title: 'Failed to update ID token on retry', errorCode: 'IdTokenUpdateFailed', retry: retries, error: error });
       let fatalErrors = {
-        'consent_required': true,
-        'login_required': true
+        consent_required: true,
+        login_required: true
       };
       if (fatalErrors[error.error]) {
         throw error;
@@ -301,7 +301,7 @@ export default class auth {
 
       if (retries < 4 && error.authResultError === undefined) {
         return new Promise(resolve => setTimeout(() => resolve(), 1000))
-          .then(() => this.renewAuth(retries + 1));
+        .then(() => this.renewAuth(retries + 1));
       }
       throw error;
     });

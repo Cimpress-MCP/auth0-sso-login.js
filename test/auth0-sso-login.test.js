@@ -49,9 +49,9 @@ describe('auth0-sso-login.js', () => {
         mock.expects('profileRefreshed').withExactArgs(profile).once().resolves();
         const auth = new Auth({ hooks: { profileRefreshed: hook.profileRefreshed } });
         return auth.profileRefreshed(profile)
-          .then(() => {
-            mock.verify();
-          });
+        .then(() => {
+          mock.verify();
+        });
       });
 
       it('does not fail when no hook provided', () => {
@@ -75,10 +75,10 @@ describe('auth0-sso-login.js', () => {
         const auth = new Auth({ hooks: { tokenRefreshed: hook.tokenRefreshed } });
         auth.tokenExpiryManager = tokenExpiryManager;
         return auth.tokenRefreshed(authResult)
-          .then(() => {
-            mock.verify();
-            tokenExpiryManagerMock.verify();
-          });
+        .then(() => {
+          mock.verify();
+          tokenExpiryManagerMock.verify();
+        });
       });
 
       it('does not fail when no hook provided', () => {
@@ -91,7 +91,7 @@ describe('auth0-sso-login.js', () => {
 
         // return promise, to ensure it didn't fail
         return auth.tokenRefreshed(authResult)
-          .then(() => tokenExpiryManagerMock.verify());
+        .then(() => tokenExpiryManagerMock.verify());
       });
     });
 
@@ -173,7 +173,6 @@ describe('auth0-sso-login.js', () => {
     const catchableError = 'catchable-unit-test-error';
     const testLoginInfo = { idToken: 'unit-test-id-token', sub: 'unit-test-sub' };
     const testProfile = { sub: testLoginInfo.sub };
-    const testAuthResult = { idToken: testLoginInfo.idToken, accessToken: 'unit-test-access-token' };
     const redirectUri = 'http://unit-test-redirect';
     const testCases = [
       {
@@ -184,7 +183,7 @@ describe('auth0-sso-login.js', () => {
           objects.authMock.expects('renewAuth').once().rejects('error');
           objects.loggerMock.expects('log');
           objects.authMock.expects('universalAuth').withExactArgs(redirectUri).once().resolves(testProfile);
-        },
+        }
       },
       {
         name: 'follows login procedure with universal login with login rejection',
@@ -194,14 +193,14 @@ describe('auth0-sso-login.js', () => {
           objects.authMock.expects('universalAuth').withExactArgs(redirectUri).once().rejects(catchableError);
           objects.loggerMock.expects('log');
           objects.authMock.expects('removeLogin').withExactArgs().once();
-        },
+        }
       },
       {
         name: 'follows login procedure without universal login',
         configuration: { enabledHostedLogin: false },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
-        },
+        }
       },
       {
         name: 'does not call universal login if it is disabled and the sso auth failed',
@@ -210,7 +209,7 @@ describe('auth0-sso-login.js', () => {
           objects.authMock.expects('renewAuth').once().rejects(catchableError);
           objects.loggerMock.expects('log');
           objects.authMock.expects('removeLogin').once();
-        },
+        }
       },
       {
         name: 'returns immediately if valid token is available',
@@ -219,7 +218,7 @@ describe('auth0-sso-login.js', () => {
           objects.authMock.expects('getIdToken').once().resolves();
           objects.tokenExpiryManagerMock.expects('getRemainingMillisToTokenExpiry').once().returns(1000);
           objects.authMock.expects('renewAuth').never();
-        },
+        }
       },
       {
         name: 'follows login procedure if valid token is available but forceTokenRefresh is set',
@@ -227,8 +226,8 @@ describe('auth0-sso-login.js', () => {
         setExpectations(objects) {
           objects.authMock.expects('getIdToken').once().resolves();
           objects.authMock.expects('renewAuth').once().resolves(testLoginInfo);
-        },
-      },
+        }
+      }
     ];
 
     return testCases.map(testCase =>
@@ -247,7 +246,7 @@ describe('auth0-sso-login.js', () => {
         const authMock = sandbox.mock(auth);
 
         const redirectHandler = { attemptRedirect() {} };
-        const redirectHandlerMock = sandbox.mock(redirectHandler) ;
+        const redirectHandlerMock = sandbox.mock(redirectHandler);
         redirectHandlerMock.expects('attemptRedirect').once();
         auth.redirectHandler = redirectHandler;
 
@@ -266,15 +265,15 @@ describe('auth0-sso-login.js', () => {
         );
 
         return auth.ensureLoggedIn(testCase.configuration)
-          .then(() => {
-            authMock.verify();
-            tokenExpiryManagerMock.verify();
-          })
-          .catch((e) => {
-            if (e.name !== catchableError) {
-              throw e;
-            }
-          });
+        .then(() => {
+          authMock.verify();
+          tokenExpiryManagerMock.verify();
+        })
+        .catch(e => {
+          if (e.name !== catchableError) {
+            throw e;
+          }
+        });
       }));
   });
 });
