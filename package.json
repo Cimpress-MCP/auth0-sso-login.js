@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/Cimpress-MCP/auth0-sso-login.js#readme",
   "dependencies": {
+    "@babel/runtime": "^7.1.2",
     "auth0-js": "^9.7.3",
     "jsonwebtoken": "^8.1.1",
     "uuid": "^3.3.2"
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@babel/cli": "7.0.0",
     "@babel/core": "^7.1.2",
+    "@babel/plugin-transform-runtime": "^7.1.0",
     "@babel/polyfill": "7.0.0",
     "@babel/preset-env": "^7.1.0",
     "@babel/register": "7.0.0",
