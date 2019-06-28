@@ -197,7 +197,7 @@ export default class auth {
     .catch(e => {
       // if universal login is not enabled, error out
       if (!configuration.enabledHostedLogin) {
-        return Promise.reject(e);
+        throw e;
       }
 
       this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', errorCode: 'RenewAuthorizationFailure', error: e });
