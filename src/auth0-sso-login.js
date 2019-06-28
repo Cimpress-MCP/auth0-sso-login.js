@@ -2,7 +2,6 @@ import jwtManager from 'jsonwebtoken';
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
 import RedirectHandler from './redirectHandler';
-import ErrorHandler from './errorHandler';
 import Logger from './logger';
 import Auth0ClientProvider from './auth0ClientProvider';
 
@@ -19,7 +18,6 @@ export default class auth {
     this.logger = logger;
     this.tokenExpiryManager = new TokenExpiryManager();
     this.redirectHandler = new RedirectHandler(logger);
-    this.errorHandler = new ErrorHandler(logger);
     this.renewAuthSequencePromise = Promise.resolve();
     this.auth0ClientProvider = new Auth0ClientProvider(config);
   }
@@ -170,9 +168,18 @@ export default class auth {
       return Promise.resolve();
     }
 
-    this.errorHandler.tryCaptureError();
-
-    let redirectFromAuth0Result = await new Promise((resolve, reject) => this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
+    let redirectFromAuth0Result;
+    try {
+      redirectFromAuth0Result = await new Promise((resolve, reject) => this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
+    } catch (auth0Error) {
+      let errorCode = auth0Error.error;
+      if (auth0Error.error === 'access_denied' && auth0Error.errorDescription === 'Please verify your email before logging in.') {
+        errorCode = 'UnverifiedEmail';
+      }
+      this.logger.log({ title: 'Login error found', level: 'WARN', url: window.location.href, error: auth0Error, errorCode, description: auth0Error.errorDescription });
+      const updatedError = { details: auth0Error.errorDescription, errorCode };
+      throw updatedError;
+    }
     let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken;
     if (containsToken) {
       this.authResult = redirectFromAuth0Result;
@@ -185,11 +192,6 @@ export default class auth {
 
       let redirectUri = this.redirectHandler.attemptRedirect();
       return { redirectUri };
-    }
-
-    let foundError = this.errorHandler.getCapturedError();
-    if (foundError) {
-      return Promise.reject(foundError);
     }
 
     const authPromise = this.renewAuthSequencePromise
