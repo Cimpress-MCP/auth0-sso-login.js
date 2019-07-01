@@ -261,7 +261,7 @@ describe('auth0-sso-login.js', () => {
         let loggerMock = sandbox.mock(logger);
 
         testCase.setExpectations(
-          { auth, authMock, tokenExpiryManagerMock, loggerMock },
+          { auth, authMock, tokenExpiryManagerMock, loggerMock }
         );
 
         return auth.ensureLoggedIn(testCase.configuration)
