@@ -37,7 +37,8 @@ let auth = new Auth(config);
 let defaultConfiguration = {
   enabledHostedLogin: true,  // if Auth0's SSO fails, use the hosted login screen
   forceTokenRefresh: false // force refresh even if there is a valid token available
-  redirectUri: window.location.href // specify an override
+  redirectUri: window.location.href, // specify an override
+  explicitConnection: null // specify an explicit connection to use for this instance of calling ensureLoggedIn, will override the global configuration value
 };
 // Logs the user in and returns a promise, when succeeded, the user is logged in
 // and a valid JWT was provided (via tokenRefreshed hook).
@@ -88,6 +89,9 @@ let config = {
 
   // the logout URL, which should be accessible by a non-authenticated user, default is `window.location.href`
   logoutRedirectUri: `${window.location.origin}/#/logout`,
+
+  // specify an explicit connection to use, which allows bypassing the lock widget
+  explicitConnection: null,
 
   // hooks to get callback calls into the login/logout workflow
   hooks: {

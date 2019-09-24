@@ -27,9 +27,13 @@ export default class auth {
    * @return {Promise<any>} resolved promise with user profile; rejected promise with error
    */
   refreshProfile() {
+    // If there is no hook defined preemptively looking up the profile doesn't do any good.
+    if (!this.config.hooks || !this.config.hooks.profileRefreshed) {
+      return Promise.resolve();
+    }
     return this.getProfile()
     .then(profile => {
-      this.profileRefreshed(profile);
+      this.config.hooks.profileRefreshed(profile);
     }, error => {
       this.logger.log({ title: 'Error while retrieving user information after successful authentication', errorCode: 'ProfileError', error: error });
     });
@@ -73,18 +77,6 @@ export default class auth {
       this.logger.log({ title: 'JWTTokenException', errorCode: 'JWTTokenException', invalidToken: idToken, error: e });
       return null;
     }
-  }
-
-  /**
-   * @description calls a hook once the profile got refreshed
-   * @param profile user profile retrieved from auth0 manager
-   * @return {Promise<>}
-   */
-  profileRefreshed(profile) {
-    if (this.config.hooks && this.config.hooks.profileRefreshed) {
-      return this.config.hooks.profileRefreshed(profile);
-    }
-    return Promise.resolve();
   }
 
   /**
@@ -150,7 +142,8 @@ export default class auth {
    * @param {Boolean}    configuration.forceTokenRefresh if token should be refreshed even if it may
    *                     be still valid; default = false
    * @param {String}     configuration.redirectUri Override redirect location after universal login.
-   * @param {Boolean}     configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created.
+   * @param {String}     configuration.explicitConnection Override specified connection for universal login.
+   * @param {Boolean}    configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created.
    *                     Token validation will still be required.
    * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
    *                     otherwise
@@ -203,7 +196,7 @@ export default class auth {
       }
 
       this.logger.log({ title: 'Renew authorization did not succeed, falling back to Auth0 universal login.', errorCode: 'RenewAuthorizationFailure', error: e });
-      return this.universalAuth(configuration.redirectUri);
+      return this.universalAuth(configuration.redirectUri, configuration.explicitConnection);
     })
     .then(() => {
       this.clearOldNonces();
@@ -237,15 +230,17 @@ export default class auth {
 
   /**
    * @description uses the hosted login page to login
-   * @param redirectUri urlt to return to otherwise `window.location.href` will be used.
+   * @param redirectUri url to return to otherwise `window.location.href` will be used.
+   * @param explicitConnection connection to force using for the universal login, will bypass showing auth0 lock widget.
    * @return {Promise<any>}
    */
-  universalAuth(redirectUri) {
+  universalAuth(redirectUri, explicitConnection) {
     this.redirectHandler.setRedirect(redirectUri || window.location.href);
     const options = {
       redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
       audience: this.config.audience,
-      responseType: 'id_token token'
+      responseType: 'id_token token',
+      connection: explicitConnection || this.config.explicitConnection
     };
 
     return new Promise((resolve, reject) => {
