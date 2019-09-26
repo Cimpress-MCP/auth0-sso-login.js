@@ -14,7 +14,7 @@ chai.use(sinonChai);
 
 let sandbox;
 beforeEach(() => {
-  sandbox = sinon.sandbox.create();
+  sandbox = sinon.createSandbox();
 });
 afterEach(() => sandbox.restore());
 
@@ -48,7 +48,9 @@ describe('auth0-sso-login.js', () => {
         const profile = { unitTestProfile: 'unit-test-log-message' };
         mock.expects('profileRefreshed').withExactArgs(profile).once().resolves();
         const auth = new Auth({ hooks: { profileRefreshed: hook.profileRefreshed } });
-        return auth.profileRefreshed(profile)
+        const mockAuthed = sandbox.mock(auth);
+        mockAuthed.expects('getProfile').resolves(profile);
+        return auth.refreshProfile(profile)
         .then(() => {
           mock.verify();
         });
@@ -59,7 +61,7 @@ describe('auth0-sso-login.js', () => {
         const auth = new Auth();
 
         // return promise, to ensure it didn't fail
-        return auth.profileRefreshed(profile);
+        return auth.refreshProfile(profile);
       });
     });
 
@@ -182,7 +184,7 @@ describe('auth0-sso-login.js', () => {
           objects.authMock.expects('getIdToken').once().resolves();
           objects.authMock.expects('renewAuth').once().rejects('error');
           objects.loggerMock.expects('log');
-          objects.authMock.expects('universalAuth').withExactArgs(redirectUri).once().resolves(testProfile);
+          objects.authMock.expects('universalAuth').withExactArgs(redirectUri, undefined).once().resolves(testProfile);
         }
       },
       {
@@ -190,7 +192,7 @@ describe('auth0-sso-login.js', () => {
         configuration: { enabledHostedLogin: true, redirectUri: redirectUri },
         setExpectations(objects) {
           objects.authMock.expects('renewAuth').once().rejects('error');
-          objects.authMock.expects('universalAuth').withExactArgs(redirectUri).once().rejects(catchableError);
+          objects.authMock.expects('universalAuth').withExactArgs(redirectUri, undefined).once().rejects(catchableError);
           objects.loggerMock.expects('log');
           objects.authMock.expects('removeLogin').withExactArgs().once();
         }
