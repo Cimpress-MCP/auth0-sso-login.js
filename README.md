@@ -90,6 +90,9 @@ let config = {
   // the logout URL, which should be accessible by a non-authenticated user, default is `window.location.href`
   logoutRedirectUri: `${window.location.origin}/#/logout`,
 
+  // the application root, by default the redirect from universal lock will redirect here before replacing history with the specified redirect.
+  applicationRoot: '/',
+
   // specify an explicit connection to use, which allows bypassing the lock widget
   explicitConnection: null,
 

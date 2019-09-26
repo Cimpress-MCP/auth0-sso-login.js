@@ -1,4 +1,6 @@
 import jwtManager from 'jsonwebtoken';
+import path from 'path';
+
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
 import RedirectHandler from './redirectHandler';
@@ -10,6 +12,18 @@ export default class auth {
   /**
    * @constructor constructs the object with a given configuration
    * @param {Object} config
+   * @param {string} config.clientId the auth0 client ID to be used - see https://auth0.com/docs/api-auth/tutorials/client-credentials
+   * @param {string} config.domain the auth0 domain to login - see https://auth0.com/docs/api-auth/tutorials/client-credentials
+   * @param {string} config.audience the auth0 audience - see https://auth0.com/docs/api-auth/tutorials/client-credentials
+   * @param {string} [config.logoutRedirectUri=${window.location.origin}/#/logout] the logout URL, which should be accessible by a non-authenticated user, default is `window.location.href`
+   * @param {string} [config.applicationRoot=/] the application root, by default the redirect from universal lock will redirect here before replacing history with the specified redirect.
+   * @param {string} [config.explicitConnection] specify an explicit connection to use, which allows bypassing the lock widget
+   * @param {Object} hooks hooks to get callback calls into the login/logout workflow
+   * @param {Function} config.logout (redirectUri) before the redirect to the redirectUri happens (with fallback to logoutRedirectUri and then to window.location.href)
+   * @param {Function} config.profileRefreshed (profile) the profile was retrieved, this is an option to store the profile, or update the user interface
+   * @param {Function} config.tokenRefreshed the auth token was retrieved, this is an option to store the token for later use
+   * @param {Function} config.removeLogin called before logout or when there's a problem with the current user, for example an invalid token
+   * @param {Function} config.log (messageObject) allows to override log messages; defaults to log to the console
    */
   constructor(config) {
     this.config = config || {};
@@ -236,8 +250,9 @@ export default class auth {
    */
   universalAuth(redirectUri, explicitConnection) {
     this.redirectHandler.setRedirect(redirectUri || window.location.href);
+    const redirectUriRoot = window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
     const options = {
-      redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
+      redirectUri: path.join(redirectUriRoot, this.config.applicationRoot || ''),
       audience: this.config.audience,
       responseType: 'id_token token',
       connection: explicitConnection || this.config.explicitConnection
@@ -261,8 +276,9 @@ export default class auth {
    * @return {Promise<any>}
    */
   renewAuth(retries = 0) {
+    const redirectUriRoot = window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
     const renewOptions = {
-      redirectUri: window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`,
+      redirectUri: path.join(redirectUriRoot, this.config.applicationRoot || ''),
       audience: this.config.audience,
       responseType: 'id_token token'
     };
