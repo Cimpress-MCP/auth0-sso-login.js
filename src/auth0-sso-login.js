@@ -1,5 +1,4 @@
 import jwtManager from 'jsonwebtoken';
-import path from 'path';
 
 import windowInteraction from './window-interaction';
 import TokenExpiryManager from './token-expiry-manager';
@@ -252,7 +251,7 @@ export default class auth {
     this.redirectHandler.setRedirect(redirectUri || window.location.href);
     const redirectUriRoot = window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
     const options = {
-      redirectUri: path.join(redirectUriRoot, this.config.applicationRoot || ''),
+      redirectUri: `${redirectUriRoot}${this.config.applicationRoot || ''}`,
       audience: this.config.audience,
       responseType: 'id_token token',
       connection: explicitConnection || this.config.explicitConnection
@@ -278,7 +277,7 @@ export default class auth {
   renewAuth(retries = 0) {
     const redirectUriRoot = window.location.origin || `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`;
     const renewOptions = {
-      redirectUri: path.join(redirectUriRoot, this.config.applicationRoot || ''),
+      redirectUri: `${redirectUriRoot}${this.config.applicationRoot || ''}`,
       audience: this.config.audience,
       responseType: 'id_token token'
     };
