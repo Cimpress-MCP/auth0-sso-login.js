@@ -158,8 +158,7 @@ export default class auth {
    * @param {String}     configuration.explicitConnection Override specified connection for universal login.
    * @param {Boolean}    configuration.requireValidSession Require that a valid token was retrieved once before, if not returns immediately, no token will be created.
    *                     Token validation will still be required.
-   * @return {Promise<>} empty resolved promise after successful login; rejected promise with error
-   *                     otherwise
+   * @return {Promise<Object>} optional redirectUri on successful login if a redirect needs to still happen; otherwise rejected promise with error
    */
   async ensureLoggedIn(configuration = { enabledHostedLogin: true, forceTokenRefresh: false, requireValidSession: false }) {
     // if there is still a valid token, there is no need to initiate the login process
@@ -176,15 +175,21 @@ export default class auth {
 
     let redirectFromAuth0Result;
     try {
-      redirectFromAuth0Result = await new Promise((resolve, reject) => this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
+      redirectFromAuth0Result = await new Promise((resolve, reject) =>
+        this.auth0ClientProvider.getClient().parseHash({}, (error, authResult) => error ? reject(error) : resolve(authResult)));
     } catch (auth0Error) {
       let errorCode = auth0Error.error;
       if (auth0Error.error === 'access_denied' && auth0Error.errorDescription === 'Please verify your email before logging in.') {
         errorCode = 'UnverifiedEmail';
       }
       this.logger.log({ title: 'Login error found', level: 'WARN', url: window.location.href, error: auth0Error, errorCode, description: auth0Error.errorDescription });
-      const updatedError = { details: auth0Error.errorDescription, errorCode };
-      throw updatedError;
+
+      // In the case of an invalid token, skip throwing the error here and fallback to fetching a valid token directly from Auth0. This can happen if state or nonce was attempted to be hijacked.
+      // Instead of telling the user or forcing them to login again manually, defeat the CSRF or replay-attack by automatically authing with Auth0 directly. This will happen in `renewAuth`.
+      if (auth0Error.error !== 'invalid_token') {
+        const updatedError = { details: auth0Error.errorDescription, errorCode };
+        throw updatedError;
+      }
     }
     let containsToken = redirectFromAuth0Result && redirectFromAuth0Result.idToken && redirectFromAuth0Result.accessToken;
     if (containsToken) {
