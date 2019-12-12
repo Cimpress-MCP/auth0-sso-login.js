@@ -14,6 +14,7 @@ export default class auth {
    * @param {string} config.clientId the auth0 client ID to be used - see https://auth0.com/docs/api-auth/tutorials/client-credentials
    * @param {string} config.domain the auth0 domain to login - see https://auth0.com/docs/api-auth/tutorials/client-credentials
    * @param {string} config.audience the auth0 audience - see https://auth0.com/docs/api-auth/tutorials/client-credentials
+   * @param {string} [config.timeout=5000] timeout in milliseconds attempting to call auth0 - this can fail when the auth0 domain is blocked
    * @param {string} [config.logoutRedirectUri=${window.location.origin}/#/logout] the logout URL, which should be accessible by a non-authenticated user, default is `window.location.href`
    * @param {string} [config.applicationRoot=/] the application root, by default the redirect from universal lock will redirect here before replacing history with the specified redirect.
    * @param {string} [config.explicitConnection] specify an explicit connection to use, which allows bypassing the lock widget
@@ -284,7 +285,8 @@ export default class auth {
     const renewOptions = {
       redirectUri: `${redirectUriRoot}${this.config.applicationRoot || ''}`,
       audience: this.config.audience,
-      responseType: 'id_token token'
+      responseType: 'id_token token',
+      timeout: this.config.timeout || 5000
     };
 
     return new Promise((resolve, reject) => {
