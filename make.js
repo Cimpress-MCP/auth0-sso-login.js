@@ -36,8 +36,9 @@ commander
 .action(() => {
   console.log('After build package %s (%s)', packageMetadata.name, version);
   console.log('');
-  ci.PublishGitTag();
-  ci.MergeDownstream('release/', 'master');
+  // Security for travis has been disabled, when it is reenabled we can turn this back on.
+  // ci.PublishGitTag();
+  // ci.MergeDownstream('release/', 'master');
 });
 
 commander.parse(process.argv);
