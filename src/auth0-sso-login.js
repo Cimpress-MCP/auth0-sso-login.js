@@ -260,7 +260,8 @@ export default class auth {
       redirectUri: `${redirectUriRoot}${this.config.applicationRoot || ''}`,
       audience: this.config.audience,
       responseType: 'id_token token',
-      connection: explicitConnection || this.config.explicitConnection
+      connection: explicitConnection || this.config.explicitConnection,
+      prompt: (explicitConnection || this.config.explicitConnection) ? 'select_account' : 'none'
     };
 
     return new Promise((resolve, reject) => {
