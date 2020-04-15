@@ -261,7 +261,7 @@ export default class auth {
       audience: this.config.audience,
       responseType: 'id_token token',
       connection: explicitConnection || this.config.explicitConnection,
-      prompt: (explicitConnection || this.config.explicitConnection) ? 'select_account' : 'none'
+      prompt: (explicitConnection || this.config.explicitConnection) ? 'select_account' : undefined
     };
 
     return new Promise((resolve, reject) => {
