@@ -1,4 +1,4 @@
-import uuid from 'uuid';
+import { v4 } from 'uuid';
 import windowInteraction from './window-interaction';
 
 export default class tokenExpiryManager {
@@ -36,7 +36,7 @@ export default class tokenExpiryManager {
   }
 
   createSession() {
-    this.sessionId = uuid.v4();
+    this.sessionId = v4();
   }
 
   authorizationSessionExists() {
